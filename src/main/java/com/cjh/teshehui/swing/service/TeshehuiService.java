@@ -9,5 +9,7 @@ public interface TeshehuiService {
 	ReturnResultBean login(String phoneNo, String smsCode);
 	
 	ReturnResultBean getAddress();
+	
+	ReturnResultBean getUserInfo();
 
 }

@@ -67,11 +67,12 @@ public class MainFrame extends JFrame {
 	private JPanel contentPane;
 	private JTextField phoneNoField;
 	private VerifyImgCodeJDialog vImgJDialog;
-	private JLabel addressLabel;
+	private JTextPane addressLabel;
 	private JLabel phoneNoLabel;
 	private JLabel verifyLabel;
 	private TeshehuiService teshehuiService;
 	private JButton getVerfiyButton;
+	private JButton sessionLoginButton;
 	private JButton loginButton;
 
 	private JTextField textField;
@@ -109,6 +110,7 @@ public class MainFrame extends JFrame {
 		verifyLabel.setVisible(!isLogin);
 		smsCodeField.setVisible(!isLogin);
 		getVerfiyButton.setVisible(!isLogin);
+		sessionLoginButton.setVisible(!isLogin);
 		if (isLogin) {
 			loginButton.setText("登出");
 		} else {
@@ -131,7 +133,7 @@ public class MainFrame extends JFrame {
 		// 登录框begin
 		JPanel loginPane = new JPanel();
 		loginPane.setBorder(new LineBorder(new Color(0, 0, 0)));
-		loginPane.setBounds(10, 10, 228, 154);
+		loginPane.setBounds(10, 10, 291, 154);
 		contentPane.add(loginPane);
 		loginPane.setLayout(null);
 
@@ -146,33 +148,33 @@ public class MainFrame extends JFrame {
 		loginPane.add(phoneNoLabel);
 
 		phoneNoField = new JTextField();
-		phoneNoField.setBounds(76, 43, 142, 21);
+		phoneNoField.setBounds(76, 43, 101, 21);
 		loginPane.add(phoneNoField);
 		phoneNoField.setColumns(10);
 
-		getVerfiyButton = new JButton("获取验证码");
-		getVerfiyButton.addMouseListener(new MouseAdapter() {
+		sessionLoginButton = new JButton("用原来会话登录");
+		sessionLoginButton.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseClicked(MouseEvent e) {
-				if (StringUtils.isEmpty(phoneNoField.getText())) {
-					JOptionPane.showMessageDialog(loginPane, "手机号不能为空");
-					return;
-				}
-				vImgJDialog = new VerifyImgCodeJDialog(MainFrame.this, phoneNoField.getText());
-				vImgJDialog.setVisible(true);
 				teshehuiService = (TeshehuiService) SpringContextUtils.getContext().getBean("teshehuiServiceImpl");
-				ReturnResultBean returnBean = teshehuiService.getLoginSmsCode(phoneNoField.getText(),
-						vImgJDialog.getVerifyImgCode());
-				if (StringUtils.isEmpty(vImgJDialog.getVerifyImgCode())) {
+				if (teshehuiService.getUserInfo().getResultCode() != 0) {
+					JOptionPane.showMessageDialog(loginPane, "会话可能已经失效，请用短信验证码登录软件");
 					return;
 				}
+				ReturnResultBean returnBean = teshehuiService.getAddress();
 				if (returnBean.getResultCode() != 0) {
-					JOptionPane.showMessageDialog(loginPane, returnBean.getReturnMsg());
+					JOptionPane.showMessageDialog(loginPane, "会话可能已经失效，请用短信验证码登录软件");
+					return;
 				}
+				TeshehuiSession teshehuiSession = (TeshehuiSession) SpringContextUtils.getContext()
+						.getBean("teshehuiSession");
+				addressLabel.setText(teshehuiSession.getUserBean().getAddressDetail());
+				doLoginOrOut(true);
 			}
 		});
-		getVerfiyButton.setBounds(125, 119, 93, 26);
-		loginPane.add(getVerfiyButton);
+
+		sessionLoginButton.setBounds(105, 119, 176, 26);
+		loginPane.add(sessionLoginButton);
 
 		verifyLabel = new JLabel("验证码");
 		verifyLabel.setBounds(10, 84, 46, 15);
@@ -180,18 +182,18 @@ public class MainFrame extends JFrame {
 
 		smsCodeField = new JTextField();
 		smsCodeField.setColumns(10);
-		smsCodeField.setBounds(76, 81, 142, 21);
+		smsCodeField.setBounds(76, 81, 101, 21);
 		loginPane.add(smsCodeField);
 
 		loginButton = new JButton("登录");
-		loginButton.setBounds(6, 119, 93, 26);
+		loginButton.setBounds(10, 119, 68, 26);
 		loginButton.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseClicked(MouseEvent e) {
+				TeshehuiSession teshehuiSession = (TeshehuiSession) SpringContextUtils.getContext()
+						.getBean("teshehuiSession");
 				if (loginButton.getText().equals("登出")) {
 					doLoginOrOut(false);
-					TeshehuiSession teshehuiSession = (TeshehuiSession) SpringContextUtils.getContext()
-							.getBean("teshehuiSession");
 					teshehuiSession.cleanSession();
 					return;
 				}
@@ -214,20 +216,45 @@ public class MainFrame extends JFrame {
 					JOptionPane.showMessageDialog(loginPane, returnBean.getReturnMsg() + " 请设置好地址后重新登录软件");
 					return;
 				}
+				addressLabel.setText(teshehuiSession.getUserBean().getAddressDetail());
 				doLoginOrOut(true);
 			}
 		});
 		loginPane.add(loginButton);
 
-		addressLabel = new JLabel("");
-		addressLabel.setBounds(10, 36, 208, 73);
+		addressLabel = new JTextPane();
+		addressLabel.setBounds(10, 36, 271, 73);
 		addressLabel.setVisible(false);
 		loginPane.add(addressLabel);
+
+		getVerfiyButton = new JButton("获取验证码");
+		getVerfiyButton.setBounds(187, 42, 94, 57);
+		loginPane.add(getVerfiyButton);
+		getVerfiyButton.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				if (StringUtils.isEmpty(phoneNoField.getText())) {
+					JOptionPane.showMessageDialog(loginPane, "手机号不能为空");
+					return;
+				}
+				vImgJDialog = new VerifyImgCodeJDialog(MainFrame.this, phoneNoField.getText());
+				vImgJDialog.setVisible(true);
+				teshehuiService = (TeshehuiService) SpringContextUtils.getContext().getBean("teshehuiServiceImpl");
+				ReturnResultBean returnBean = teshehuiService.getLoginSmsCode(phoneNoField.getText(),
+						vImgJDialog.getVerifyImgCode());
+				if (StringUtils.isEmpty(vImgJDialog.getVerifyImgCode())) {
+					return;
+				}
+				if (returnBean.getResultCode() != 0) {
+					JOptionPane.showMessageDialog(loginPane, returnBean.getReturnMsg());
+				}
+			}
+		});
 		// 登录框end
 
 		JPanel panel_2 = new JPanel();
 		panel_2.setBorder(new LineBorder(new Color(0, 0, 0)));
-		panel_2.setBounds(259, 10, 909, 154);
+		panel_2.setBounds(334, 10, 834, 154);
 		contentPane.add(panel_2);
 		panel_2.setLayout(null);
 
@@ -311,12 +338,6 @@ public class MainFrame extends JFrame {
 		bingfaNum.setBounds(697, 56, 56, 24);
 		bingfaNum.setValue(1);
 		panel_2.add(bingfaNum);
-		// -------------
-
-		JButton btnNewButton_1 = new JButton("开始执行");
-
-		btnNewButton_1.setBounds(782, 12, 113, 111);
-		panel_2.add(btnNewButton_1);
 
 		JLabel lblNewLabel_6 = new JLabel("轮询时间");
 		lblNewLabel_6.setBounds(304, 61, 56, 15);

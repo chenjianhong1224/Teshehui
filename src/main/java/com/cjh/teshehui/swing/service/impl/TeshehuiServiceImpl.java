@@ -21,6 +21,7 @@ import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.conn.HttpClientConnectionManager;
+import org.apache.http.cookie.Cookie;
 import org.apache.http.impl.client.BasicCookieStore;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicHeader;
@@ -203,7 +204,6 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 				HttpEntity entity = response.getEntity();
 				if (entity != null) {
 					String content = EntityUtils.toString(entity);
-					System.out.println(content);
 					UserBean userBean = teshehuiSession.getUserBean();
 					String beginString = "<span class=\"default\">[默认地址] </span>";
 					String addressDetail = content.substring(content.indexOf(beginString) + beginString.length());
@@ -214,10 +214,78 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 					addressId = addressId.substring(0, addressId.indexOf(">"));
 					userBean.setAddressId(addressId);
 					teshehuiSession.setUserBean(userBean);
+					resultBean.setResultCode(0);
 				}
 			}
 		} catch (Exception e) {
 			resultBean.setReturnMsg("获取收货地址失败 " + e.getMessage());
+		}
+		return resultBean;
+	}
+
+	@Override
+	public ReturnResultBean getUserInfo() {
+		ReturnResultBean resultBean = new ReturnResultBean();
+		resultBean.setResultCode(-1);
+		resultBean.setReturnMsg("获取用户信息失败");
+		List<Header> headerList = Lists.newArrayList();
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT, "*/*"));
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT_ENCODING, "gzip, deflate, br"));
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT_LANGUAGE,
+				"zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2"));
+		headerList.add(new BasicHeader(HttpHeaders.CONNECTION, "keep-alive"));
+		headerList.add(new BasicHeader(HttpHeaders.HOST, "m.teshehui.com"));
+		headerList.add(new BasicHeader(HttpHeaders.REFERER, "https://m.teshehui.com/user"));
+		headerList.add(new BasicHeader("TE", "Trailers"));
+		headerList.add(new BasicHeader(HttpHeaders.USER_AGENT,
+				"Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0"));
+		headerList.add(new BasicHeader("X-Requested-With", "XMLHttpRequest"));
+		HttpClient httpClient = HttpClients.custom()
+				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+				.setDefaultHeaders(headerList).setDefaultCookieStore(teshehuiSession.getCookieStore())
+				.setDefaultHeaders(headerList).build();
+		String url = "https://m.teshehui.com/user/get_user_info";
+		URI uri = null;
+		try {
+			uri = new URIBuilder(url).build();
+		} catch (URISyntaxException e) {
+			resultBean.setResultCode(-1);
+			resultBean.setReturnMsg("获取用户信息失败 " + e.getMessage());
+			return resultBean;
+		}
+		HttpUriRequest httpUriRequest = RequestBuilder.get().setUri(uri).build();
+		HttpClientContext httpClientContext = HttpClientContext.create();
+		try {
+			HttpResponse response = httpClient.execute(httpUriRequest, httpClientContext);
+			if (response.getStatusLine().getStatusCode() == 200) {
+				HttpEntity entity = response.getEntity();
+				if (entity != null) {
+					String content = EntityUtils.toString(entity);
+					JSONObject jsonObject = JSON.parseObject(content);
+					if (jsonObject.getInteger("status") == 200) {
+						UserBean userBean = new UserBean();
+						resultBean.setResultCode(0);
+						userBean.setUserId(jsonObject.getString("userId"));
+						userBean.setUserType(jsonObject.getInteger("userType"));
+						userBean.setIsAgency(jsonObject.getInteger("isAgency"));
+						userBean.setMobilePhone(jsonObject.getString("mobilePhone"));
+						List<Cookie> cookies = teshehuiSession.getCookieStore().getCookies();
+						for (Cookie cookie : cookies) {
+							if(cookie.getName().equals("skey")){
+								userBean.setToken(cookie.getValue());
+							}
+						}
+						resultBean.setReturnObj(userBean);
+						teshehuiSession.setAuth(userBean.getToken());
+						teshehuiSession.setUserBean(userBean);
+						resultBean.setResultCode(0);
+					} else {
+						resultBean.setReturnMsg(resultBean.getReturnMsg() + jsonObject.getInteger("message"));
+					}
+				}
+			}
+		} catch (Exception e) {
+			resultBean.setReturnMsg("获取用户信息失败 " + e.getMessage());
 		}
 		return resultBean;
 	}
