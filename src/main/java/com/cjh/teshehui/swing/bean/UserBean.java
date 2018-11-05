@@ -60,6 +60,8 @@ public class UserBean implements Serializable {
 	private Integer isAgency;
 	
 	private String mobilePhone;
+	
+	private String nickName;
 			
 	private String token;
 	
@@ -81,6 +83,14 @@ public class UserBean implements Serializable {
 
 	public void setAddressDetail(String addressDetail) {
 		this.addressDetail = addressDetail;
+	}
+
+	public String getNickName() {
+		return nickName;
+	}
+
+	public void setNickName(String nickName) {
+		this.nickName = nickName;
 	}
 
 }

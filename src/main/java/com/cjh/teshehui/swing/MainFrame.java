@@ -7,6 +7,7 @@ import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 import javax.swing.BoxLayout;
+import javax.swing.DefaultComboBoxModel;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
@@ -18,16 +19,22 @@ import javax.swing.border.LineBorder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.util.StringUtils;
 
+import com.alibaba.fastjson.JSON;
 import com.cjh.teshehui.swing.bean.ReturnResultBean;
+import com.cjh.teshehui.swing.bean.SkuBean;
 import com.cjh.teshehui.swing.service.TeshehuiService;
 import com.cjh.teshehui.swing.session.TeshehuiSession;
 import com.cjh.teshehui.swing.utils.SpringContextUtils;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.zxing.WriterException;
 
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Font;
 import javax.swing.JTextField;
 import javax.swing.JPasswordField;
@@ -44,6 +51,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -60,6 +68,7 @@ import javax.swing.border.TitledBorder;
 import javax.swing.border.EtchedBorder;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
+import javax.swing.JComboBox;
 
 @SpringBootApplication
 public class MainFrame extends JFrame {
@@ -74,8 +83,11 @@ public class MainFrame extends JFrame {
 	private JButton getVerfiyButton;
 	private JButton sessionLoginButton;
 	private JButton loginButton;
+	private JTextField urlField;
+	private JComboBox skuComboBox;
+	private JLabel productNameLabel;
+	private Map<String, SkuBean> skuComboBoxMap;
 
-	private JTextField textField;
 	private JTable table;
 	private DefaultTableModel dtm = null;
 	private JTextArea authCode;
@@ -89,7 +101,7 @@ public class MainFrame extends JFrame {
 	 * 
 	 * @throws Exception
 	 */
-	public static void main(String[] args) throws Exception {
+	public static void main(String[] args) {
 		SpringApplication.run(MainFrame.class, args);
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
@@ -122,6 +134,7 @@ public class MainFrame extends JFrame {
 	 * Create the frame.
 	 */
 	public MainFrame() {
+		skuComboBoxMap = Maps.newHashMap();
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 1200, 600);
 		contentPane = new JPanel();
@@ -168,7 +181,10 @@ public class MainFrame extends JFrame {
 				}
 				TeshehuiSession teshehuiSession = (TeshehuiSession) SpringContextUtils.getContext()
 						.getBean("teshehuiSession");
-				addressLabel.setText(teshehuiSession.getUserBean().getAddressDetail());
+				addressLabel.setText((teshehuiSession.getUserBean().getNickName() == null ? ""
+						: teshehuiSession.getUserBean().getNickName()) + " 电话:"
+						+ teshehuiSession.getUserBean().getMobilePhone() + ", 地址:"
+						+ teshehuiSession.getUserBean().getAddressDetail());
 				doLoginOrOut(true);
 			}
 		});
@@ -251,37 +267,29 @@ public class MainFrame extends JFrame {
 			}
 		});
 		// 登录框end
-
+		// 商品选择框begin
 		JPanel panel_2 = new JPanel();
 		panel_2.setBorder(new LineBorder(new Color(0, 0, 0)));
 		panel_2.setBounds(334, 10, 834, 154);
 		contentPane.add(panel_2);
 		panel_2.setLayout(null);
 
-		JLabel lblNewLabel_5 = new JLabel("");
-		lblNewLabel_5.setBounds(646, 105, 110, 18);
-		panel_2.add(lblNewLabel_5);
-
 		JLabel lblNewLabel_2 = new JLabel("购买商品的url地址");
 		lblNewLabel_2.setBounds(14, 16, 201, 18);
 		panel_2.add(lblNewLabel_2);
 
-		textField = new JTextField();
-		textField.setText(
-				"https://www.emaotai.cn/smartsales-b2c-web-pc/details/1180731799924468740-1173773178264259584.html?skuId=1180731799931808771");
+		urlField = new JTextField();
+		urlField.setText("https://m.teshehui.com/goods/isshelves?productCode=070900429526");
+		urlField.setBounds(229, 13, 524, 24);
+		panel_2.add(urlField);
+		urlField.setColumns(10);
 
-		textField.setBounds(229, 13, 524, 24);
-		panel_2.add(textField);
-		textField.setColumns(10);
-
-		JLabel lblNewLabel_3 = new JLabel("购买的商品是否是预购模式");
-		lblNewLabel_3.setBounds(14, 59, 201, 18);
-		panel_2.add(lblNewLabel_3);
-
-		JCheckBox chckbxNewCheckBox = new JCheckBox("是");
-		chckbxNewCheckBox.setSelected(true);
-		chckbxNewCheckBox.setBounds(225, 55, 63, 27);
-		panel_2.add(chckbxNewCheckBox);
+		productNameLabel = new JLabel("选择要购买的商品");
+		productNameLabel.setBounds(14, 59, 187, 18);
+		panel_2.add(productNameLabel);
+		skuComboBox = new JComboBox();
+		skuComboBox.setBounds(229, 58, 194, 21);
+		panel_2.add(skuComboBox);
 
 		NumberFormat nf = NumberFormat.getIntegerInstance();
 		DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -319,34 +327,42 @@ public class MainFrame extends JFrame {
 
 		// -------------
 		JLabel label_2 = new JLabel("购买个数");
-		label_2.setBounds(447, 59, 56, 18);
+		label_2.setBounds(588, 61, 56, 18);
 		panel_2.add(label_2);
 
 		JFormattedTextField formattedTextField_4 = new JFormattedTextField(nf);
-		formattedTextField_4.setBounds(503, 57, 32, 24);
+		formattedTextField_4.setBounds(644, 59, 32, 24);
 		formattedTextField_4.setValue(1);
 		panel_2.add(formattedTextField_4);
-		// -------------
-
-		// -------------
-		JLabel label_3 = new JLabel("并发执行任务个数");
-		label_3.setBounds(560, 59, 128, 18);
-		panel_2.add(label_3);
-
-		JFormattedTextField bingfaNum = new JFormattedTextField(nf);
-		bingfaNum.setEditable(false);
-		bingfaNum.setBounds(697, 56, 56, 24);
-		bingfaNum.setValue(1);
-		panel_2.add(bingfaNum);
 
 		JLabel lblNewLabel_6 = new JLabel("轮询时间");
-		lblNewLabel_6.setBounds(304, 61, 56, 15);
+		lblNewLabel_6.setBounds(445, 63, 56, 15);
 		panel_2.add(lblNewLabel_6);
 
 		lunxuTime = new JFormattedTextField();
-		lunxuTime.setBounds(370, 58, 32, 21);
+		lunxuTime.setBounds(511, 60, 32, 21);
 		lunxuTime.setText("10");
 		panel_2.add(lunxuTime);
+
+		JButton button = new JButton("测试");
+		button.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				teshehuiService = (TeshehuiService) SpringContextUtils.getContext().getBean("teshehuiServiceImpl");
+				ReturnResultBean returnBean = teshehuiService.getProductStockInfo(urlField.getText());
+				if (returnBean.getResultCode() == 0) {
+					skuComboBox.removeAllItems();
+					List<SkuBean> skuList = (List<SkuBean>) returnBean.getReturnObj();
+					for (SkuBean bean : skuList) {
+						skuComboBoxMap.put(bean.getAttrValue(), bean);
+						productNameLabel.setText(bean.getProductName());
+						skuComboBox.addItem(bean.getAttrValue());
+					}
+				}
+			}
+		});
+		button.setBounds(663, 100, 93, 23);
+		panel_2.add(button);
 
 		JPanel panel_3 = new JPanel(new BorderLayout());
 		panel_3.setBorder(new TitledBorder(null, "", TitledBorder.LEADING, TitledBorder.TOP, null, null));

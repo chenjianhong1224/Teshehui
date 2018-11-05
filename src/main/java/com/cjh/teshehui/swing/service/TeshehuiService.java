@@ -11,5 +11,6 @@ public interface TeshehuiService {
 	ReturnResultBean getAddress();
 	
 	ReturnResultBean getUserInfo();
-
+	
+	ReturnResultBean getProductStockInfo(String url);
 }
