@@ -316,8 +316,10 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 				.setDefaultHeaders(headerList).build();
 		URI uri = null;
 		try {
-			uri = new URIBuilder(url).build();
-		} catch (URISyntaxException e) {
+			String[] tmps = url.split("/");
+			String productCode = tmps[tmps.length - 1];
+			uri = new URIBuilder("https://m.teshehui.com/goods/isshelves?productCode=" + productCode).build();
+		} catch (Exception e) {
 			resultBean.setResultCode(-1);
 			resultBean.setReturnMsg("获取库存失败 " + e.getMessage());
 			return resultBean;

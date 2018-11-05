@@ -87,6 +87,8 @@ public class MainFrame extends JFrame {
 	private JComboBox skuComboBox;
 	private JLabel productNameLabel;
 	private Map<String, SkuBean> skuComboBoxMap;
+	private JButton addTaskButton;
+	private int taskNum;
 
 	private JTable table;
 	private DefaultTableModel dtm = null;
@@ -186,6 +188,7 @@ public class MainFrame extends JFrame {
 						+ teshehuiSession.getUserBean().getMobilePhone() + ", 地址:"
 						+ teshehuiSession.getUserBean().getAddressDetail());
 				doLoginOrOut(true);
+				urlField.requestFocus();
 			}
 		});
 
@@ -232,8 +235,12 @@ public class MainFrame extends JFrame {
 					JOptionPane.showMessageDialog(loginPane, returnBean.getReturnMsg() + " 请设置好地址后重新登录软件");
 					return;
 				}
-				addressLabel.setText(teshehuiSession.getUserBean().getAddressDetail());
+				addressLabel.setText((teshehuiSession.getUserBean().getNickName() == null ? ""
+						: teshehuiSession.getUserBean().getNickName()) + " 电话:"
+						+ teshehuiSession.getUserBean().getMobilePhone() + ", 地址:"
+						+ teshehuiSession.getUserBean().getAddressDetail());
 				doLoginOrOut(true);
+				urlField.requestFocus();
 			}
 		});
 		loginPane.add(loginButton);
@@ -279,10 +286,29 @@ public class MainFrame extends JFrame {
 		panel_2.add(lblNewLabel_2);
 
 		urlField = new JTextField();
-		urlField.setText("https://m.teshehui.com/goods/isshelves?productCode=070900429526");
+		urlField.setText("https://m.teshehui.com/goods/detail/070900429526");
 		urlField.setBounds(229, 13, 524, 24);
 		panel_2.add(urlField);
 		urlField.setColumns(10);
+		urlField.addFocusListener(new FocusAdapter() {
+			@Override
+			public void focusLost(FocusEvent e) {
+				teshehuiService = (TeshehuiService) SpringContextUtils.getContext().getBean("teshehuiServiceImpl");
+				ReturnResultBean returnBean = teshehuiService.getProductStockInfo(urlField.getText());
+				if (returnBean.getResultCode() == 0) {
+					skuComboBox.removeAllItems();
+					List<SkuBean> skuList = (List<SkuBean>) returnBean.getReturnObj();
+					for (SkuBean bean : skuList) {
+						skuComboBoxMap.put(bean.getAttrValue(), bean);
+						productNameLabel.setText(bean.getProductName());
+						skuComboBox.addItem(bean.getAttrValue());
+					}
+				} else {
+					JOptionPane.showMessageDialog(panel_2, "请确认url是否正确");
+					urlField.requestFocus();
+				}
+			}
+		});
 
 		productNameLabel = new JLabel("选择要购买的商品");
 		productNameLabel.setBounds(14, 59, 187, 18);
@@ -294,7 +320,6 @@ public class MainFrame extends JFrame {
 		NumberFormat nf = NumberFormat.getIntegerInstance();
 		DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
-		// -------------
 		JLabel lblNewLabel_4 = new JLabel("任务执行时间（格式按样例）");
 		lblNewLabel_4.setBounds(14, 105, 201, 18);
 		panel_2.add(lblNewLabel_4);
@@ -364,18 +389,36 @@ public class MainFrame extends JFrame {
 		button.setBounds(663, 100, 93, 23);
 		panel_2.add(button);
 
+		addTaskButton = new JButton("添加进任务");
+		addTaskButton.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				if (skuComboBox.getSelectedItem() != null
+						&& !StringUtils.isEmpty((String) skuComboBox.getSelectedItem())) {
+					taskNum++;
+					String row[] = { (String) skuComboBox.getSelectedItem() + " " + productNameLabel.getText(), "",
+							"" };
+					dtm.addRow(row);
+				} else {
+					JOptionPane.showMessageDialog(panel_2, "无法添加任务，请确认url正确");
+				}
+			}
+		});
+		addTaskButton.setBounds(707, 57, 113, 27);
+		panel_2.add(addTaskButton);
+
 		JPanel panel_3 = new JPanel(new BorderLayout());
 		panel_3.setBorder(new TitledBorder(null, "", TitledBorder.LEADING, TitledBorder.TOP, null, null));
 		panel_3.setBounds(10, 191, 1158, 154);
 		contentPane.add(panel_3);
 
-		String[] columnNames = { "任务号", "时间", "执行描述" };
+		String[] columnNames = { "任务名", "时间", "执行描述" };
 		dtm = new DefaultTableModel(columnNames, 0);
 		table = new JTable(dtm);
 		table.setBorder(new EtchedBorder(EtchedBorder.LOWERED, null, null));
 		table.setShowGrid(false);
-		table.getColumnModel().getColumn(0).setPreferredWidth(120);
-		table.getColumnModel().getColumn(0).setMaxWidth(160);
+		table.getColumnModel().getColumn(0).setPreferredWidth(420);
+		table.getColumnModel().getColumn(0).setMaxWidth(460);
 		table.getColumnModel().getColumn(0).sizeWidthToFit();
 		table.getColumnModel().getColumn(1).setPreferredWidth(120);
 		table.getColumnModel().getColumn(1).setMaxWidth(160);
