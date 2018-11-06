@@ -28,6 +28,8 @@ import com.cjh.teshehui.swing.bean.ReturnResultBean;
 import com.cjh.teshehui.swing.bean.SkuBean;
 import com.cjh.teshehui.swing.service.TeshehuiService;
 import com.cjh.teshehui.swing.session.TeshehuiSession;
+import com.cjh.teshehui.swing.task.OrderTask;
+import com.cjh.teshehui.swing.task.ViewTask;
 import com.cjh.teshehui.swing.utils.SpringContextUtils;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -88,7 +90,11 @@ public class MainFrame extends JFrame {
 	private JLabel productNameLabel;
 	private Map<String, SkuBean> skuComboBoxMap;
 	private JButton addTaskButton;
-	private int taskNum;
+	private List<SkuBean> taskBeans;
+	private List<Thread> taskThreadList = Lists.newArrayList();
+	private Thread viewThread = null;
+	private boolean isRunning = false;
+	private JButton excuteButton;
 
 	private JTable table;
 	private DefaultTableModel dtm = null;
@@ -129,6 +135,47 @@ public class MainFrame extends JFrame {
 			loginButton.setText("登出");
 		} else {
 			loginButton.setText("登录");
+		}
+	}
+
+	private void doExcute(boolean isExcute) {
+		addTaskButton.setEnabled(!isExcute);
+		loginButton.setEnabled(!isExcute);
+		if (isExcute) {
+			excuteButton.setText("停止");
+		} else {
+			excuteButton.setText("开始执行");
+			OrderTask.getTaskFinishFlag().set(true);
+			for (Thread taskThread : taskThreadList) {
+				try {
+					taskThread.join();
+				} catch (InterruptedException e1) {
+					e1.printStackTrace();
+				}
+			}
+			if (viewThread != null) {
+				try {
+					viewThread.join();
+				} catch (InterruptedException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+			}
+			while (true) {
+				try {
+					ViewTask.msgQueue.remove();
+				} catch (NoSuchElementException e2) {
+					break;
+				}
+			}
+			taskThreadList.clear();
+			taskBeans.clear();
+			int rowCount = table.getRowCount();
+			while (rowCount > 0) {
+				dtm.removeRow(0);
+				rowCount--;
+			}
+			table.validate();
 		}
 	}
 
@@ -285,6 +332,7 @@ public class MainFrame extends JFrame {
 		lblNewLabel_2.setBounds(14, 16, 201, 18);
 		panel_2.add(lblNewLabel_2);
 
+		taskBeans = Lists.newArrayList();
 		urlField = new JTextField();
 		urlField.setText("https://m.teshehui.com/goods/detail/070900429526");
 		urlField.setBounds(229, 13, 524, 24);
@@ -299,7 +347,7 @@ public class MainFrame extends JFrame {
 					skuComboBox.removeAllItems();
 					List<SkuBean> skuList = (List<SkuBean>) returnBean.getReturnObj();
 					for (SkuBean bean : skuList) {
-						skuComboBoxMap.put(bean.getAttrValue(), bean);
+						skuComboBoxMap.put(bean.getAttrValue() + " " + bean.getProductName(), bean);
 						productNameLabel.setText(bean.getProductName());
 						skuComboBox.addItem(bean.getAttrValue());
 					}
@@ -333,7 +381,7 @@ public class MainFrame extends JFrame {
 			// TODO Auto-generated catch block
 			e3.printStackTrace();
 		}
-		Date endTime = new Date(beginTime.getTime() + 1000 * 60 * 5L);
+		Date endTime = new Date(beginTime.getTime() + 1000 * 60 * 15L);
 
 		JFormattedTextField formattedTextField = new JFormattedTextField(df);
 		formattedTextField.setBounds(229, 99, 173, 24);
@@ -348,9 +396,7 @@ public class MainFrame extends JFrame {
 		formattedTextField_1.setBounds(445, 99, 173, 24);
 		formattedTextField_1.setValue(endTime);
 		panel_2.add(formattedTextField_1);
-		// -------------
 
-		// -------------
 		JLabel label_2 = new JLabel("购买个数");
 		label_2.setBounds(588, 61, 56, 18);
 		panel_2.add(label_2);
@@ -358,6 +404,7 @@ public class MainFrame extends JFrame {
 		JFormattedTextField formattedTextField_4 = new JFormattedTextField(nf);
 		formattedTextField_4.setBounds(644, 59, 32, 24);
 		formattedTextField_4.setValue(1);
+		formattedTextField_4.setEditable(false);
 		panel_2.add(formattedTextField_4);
 
 		JLabel lblNewLabel_6 = new JLabel("轮询时间");
@@ -369,25 +416,43 @@ public class MainFrame extends JFrame {
 		lunxuTime.setText("10");
 		panel_2.add(lunxuTime);
 
-		JButton button = new JButton("测试");
-		button.addMouseListener(new MouseAdapter() {
+		excuteButton = new JButton("开始执行");
+		excuteButton.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseClicked(MouseEvent e) {
-				teshehuiService = (TeshehuiService) SpringContextUtils.getContext().getBean("teshehuiServiceImpl");
-				ReturnResultBean returnBean = teshehuiService.getProductStockInfo(urlField.getText());
-				if (returnBean.getResultCode() == 0) {
-					skuComboBox.removeAllItems();
-					List<SkuBean> skuList = (List<SkuBean>) returnBean.getReturnObj();
-					for (SkuBean bean : skuList) {
-						skuComboBoxMap.put(bean.getAttrValue(), bean);
-						productNameLabel.setText(bean.getProductName());
-						skuComboBox.addItem(bean.getAttrValue());
+				boolean runFlag = false;
+				if (excuteButton.getText().equals("开始执行")) {
+					if (table.getRowCount() <= 0) {
+						JOptionPane.showMessageDialog(panel_2, "请先添加任务");
+						return;
 					}
+					if (!loginButton.getText().equals("登出")) {
+						JOptionPane.showMessageDialog(panel_2, "请先登录");
+						return;
+					}
+					OrderTask.sleepTime = Long
+							.valueOf(StringUtils.isEmpty(lunxuTime.getText()) ? "1" : lunxuTime.getText()) * 1000;
+					OrderTask.getTaskFinishFlag().set(false);
+					Date beginTime = (Date) formattedTextField.getValue();
+					Date endTime = (Date) formattedTextField_1.getValue();
+					int i = 0;
+					String num = formattedTextField_4.getText();
+					for (SkuBean sku : taskBeans) {
+						OrderTask task = new OrderTask(beginTime, endTime, sku, num, i++);
+						Thread taskThread = new Thread(task, "用户工作任务-" + i);
+						taskThreadList.add(taskThread);
+						taskThread.start();
+					}
+					ViewTask viewTask = new ViewTask(table, dtm);
+					viewThread = new Thread(viewTask, "下单结果显示任务");
+					viewThread.start();
+					runFlag = true;
 				}
+				doExcute(runFlag);
 			}
 		});
-		button.setBounds(663, 100, 93, 23);
-		panel_2.add(button);
+		excuteButton.setBounds(707, 99, 113, 27);
+		panel_2.add(excuteButton);
 
 		addTaskButton = new JButton("添加进任务");
 		addTaskButton.addMouseListener(new MouseAdapter() {
@@ -395,10 +460,10 @@ public class MainFrame extends JFrame {
 			public void mouseClicked(MouseEvent e) {
 				if (skuComboBox.getSelectedItem() != null
 						&& !StringUtils.isEmpty((String) skuComboBox.getSelectedItem())) {
-					taskNum++;
-					String row[] = { (String) skuComboBox.getSelectedItem() + " " + productNameLabel.getText(), "",
-							"" };
+					String key = (String) skuComboBox.getSelectedItem() + " " + productNameLabel.getText();
+					String row[] = { key, "", "" };
 					dtm.addRow(row);
+					taskBeans.add(skuComboBoxMap.get(key));
 				} else {
 					JOptionPane.showMessageDialog(panel_2, "无法添加任务，请确认url正确");
 				}
@@ -406,6 +471,7 @@ public class MainFrame extends JFrame {
 		});
 		addTaskButton.setBounds(707, 57, 113, 27);
 		panel_2.add(addTaskButton);
+		// 商品选择框end
 
 		JPanel panel_3 = new JPanel(new BorderLayout());
 		panel_3.setBorder(new TitledBorder(null, "", TitledBorder.LEADING, TitledBorder.TOP, null, null));

@@ -1,6 +1,7 @@
 package com.cjh.teshehui.swing.service;
 
 import com.cjh.teshehui.swing.bean.ReturnResultBean;
+import com.cjh.teshehui.swing.bean.SkuBean;
 
 public interface TeshehuiService {
 	
@@ -13,4 +14,6 @@ public interface TeshehuiService {
 	ReturnResultBean getUserInfo();
 	
 	ReturnResultBean getProductStockInfo(String url);
+	
+	ReturnResultBean createOrder(SkuBean bean);
 }

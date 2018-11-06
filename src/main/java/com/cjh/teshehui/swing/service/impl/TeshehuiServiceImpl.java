@@ -345,6 +345,8 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 							skuBean.setSkuCode(jsonArray.getJSONObject(i).getString("skuCode"));
 							skuBean.setSkuStock(jsonArray.getJSONObject(i).getInteger("skuStock"));
 							skuBean.setLimitNum(jsonArray.getJSONObject(i).getInteger("limitNum"));
+							skuBean.setStoreId(jsonObject.getString("storeId"));
+							skuBean.setMemberPrice(jsonArray.getJSONObject(i).getString("memberPrice"));
 							try {
 								JSONObject attrObj = jsonArray.getJSONObject(i).getJSONObject("attr1");
 								skuBean.setAttrValue(attrObj.getString("attrValue"));
@@ -360,6 +362,152 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 			}
 		} catch (Exception e) {
 			resultBean.setReturnMsg("获取库存失败 " + e.getMessage());
+		}
+		return resultBean;
+	}
+
+	@Override
+	public ReturnResultBean createOrder(SkuBean bean) {
+		ReturnResultBean returnFreightBean = getFreightAmount(bean);
+		if (returnFreightBean.getResultCode() != 0) {
+			returnFreightBean.setResultCode(-1);
+			returnFreightBean.setReturnMsg("获取运费失败");
+			return returnFreightBean;
+		}
+		bean.setFreightMoney((Integer) returnFreightBean.getReturnObj());
+		ReturnResultBean resultBean = new ReturnResultBean();
+		resultBean.setResultCode(-1);
+		resultBean.setReturnMsg("下单失败");
+		List<Header> headerList = Lists.newArrayList();
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT, "*/*"));
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT_ENCODING, "gzip, deflate, br"));
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT_LANGUAGE,
+				"zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2"));
+		headerList.add(new BasicHeader(HttpHeaders.CONNECTION, "keep-alive"));
+		headerList.add(new BasicHeader(HttpHeaders.HOST, "m.teshehui.com"));
+		headerList.add(new BasicHeader("TE", "Trailers"));
+		headerList.add(new BasicHeader(HttpHeaders.USER_AGENT,
+				"Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0"));
+		headerList.add(new BasicHeader("X-Requested-With", "XMLHttpRequest"));
+		HttpClient httpClient = HttpClients.custom()
+				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+				.setDefaultHeaders(headerList).setDefaultCookieStore(teshehuiSession.getCookieStore())
+				.setDefaultHeaders(headerList).build();
+		String url = "https://m.teshehui.com/order/createorder";
+		URI uri = null;
+		try {
+			uri = new URIBuilder(url).build();
+		} catch (URISyntaxException e) {
+			resultBean.setResultCode(-1);
+			resultBean.setReturnMsg("下单失败 " + e.getMessage());
+			return resultBean;
+		}
+		List<NameValuePair> params = Lists.newArrayList();
+		params.add(new BasicNameValuePair("buyType", "2"));
+		params.add(new BasicNameValuePair("deliveryType", "2"));
+		params.add(new BasicNameValuePair("orderPayAmount", bean.getMemberPrice()));
+		params.add(new BasicNameValuePair("payPoint", "0"));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][freeAmount]", "0"));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][freightAmount]", bean.getFreightMoney() + ""));
+		params.add(
+				new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][costPrice]", bean.getMemberPrice()));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][costTB]", "0"));
+		Date now = new Date();
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][createTime]", now.getTime() + ""));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][isPresent]", "0"));
+		params.add(
+				new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][payAmount]", bean.getMemberPrice()));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][payPoint]", "0"));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][productCode]",
+				bean.getProductCode()));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][productName]",
+				bean.getProductName()));
+		params.add(
+				new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][productSkuCode]", bean.getSkuCode()));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][productType]", "1"));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][quantity]", "1"));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][userActivityCode]", "A001303"));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][userCouponCode]", ""));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][storeId]", bean.getStoreId()));
+		params.add(new BasicNameValuePair("tshAmount", "0"));
+		params.add(new BasicNameValuePair("userAddressId", teshehuiSession.getUserBean().getAddressId()));
+		params.add(new BasicNameValuePair("userType", "0"));
+		try {
+			HttpUriRequest httpUriRequest;
+			httpUriRequest = RequestBuilder.post().setEntity(new UrlEncodedFormEntity(params, "UTF-8")).setUri(uri)
+					.build();
+			HttpClientContext httpClientContext = HttpClientContext.create();
+			HttpResponse response = httpClient.execute(httpUriRequest, httpClientContext);
+			if (response.getStatusLine().getStatusCode() == 200) {
+				HttpEntity entity = response.getEntity();
+				if (entity != null) {
+					String content = EntityUtils.toString(entity);
+					JSONObject jsonObject = JSON.parseObject(content);
+					if ((jsonObject.getInteger("status") == 200)) {
+						resultBean.setResultCode(0);
+					} else {
+						resultBean.setReturnMsg(jsonObject.getString("message"));
+					}
+				}
+			}
+		} catch (Exception e) {
+			resultBean.setReturnMsg("下单失败 " + e.getMessage());
+		}
+		return resultBean;
+	}
+
+	private ReturnResultBean getFreightAmount(SkuBean bean) {
+		ReturnResultBean resultBean = new ReturnResultBean();
+		resultBean.setResultCode(-1);
+		resultBean.setReturnMsg("获取运费失败");
+		List<Header> headerList = Lists.newArrayList();
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT, "*/*"));
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT_ENCODING, "gzip, deflate, br"));
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT_LANGUAGE,
+				"zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2"));
+		headerList.add(new BasicHeader(HttpHeaders.CONNECTION, "keep-alive"));
+		headerList.add(new BasicHeader(HttpHeaders.HOST, "m.teshehui.com"));
+		headerList.add(new BasicHeader("TE", "Trailers"));
+		headerList.add(new BasicHeader(HttpHeaders.USER_AGENT,
+				"Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0"));
+		headerList.add(new BasicHeader("X-Requested-With", "XMLHttpRequest"));
+		HttpClient httpClient = HttpClients.custom()
+				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+				.setDefaultHeaders(headerList).setDefaultCookieStore(teshehuiSession.getCookieStore())
+				.setDefaultHeaders(headerList).build();
+		String url = "https://m.teshehui.com/cgi/getProductFreightFee";
+		URI uri = null;
+		try {
+			uri = new URIBuilder(url).build();
+		} catch (URISyntaxException e) {
+			resultBean.setResultCode(-1);
+			resultBean.setReturnMsg("获取运费失败 " + e.getMessage());
+			return resultBean;
+		}
+		List<NameValuePair> params = Lists.newArrayList();
+		params.add(new BasicNameValuePair("productCode", bean.getProductCode()));
+		params.add(new BasicNameValuePair("supplierId", bean.getSupplierId()));
+		try {
+			HttpUriRequest httpUriRequest;
+			httpUriRequest = RequestBuilder.post().setEntity(new UrlEncodedFormEntity(params, "UTF-8")).setUri(uri)
+					.build();
+			HttpClientContext httpClientContext = HttpClientContext.create();
+			HttpResponse response = httpClient.execute(httpUriRequest, httpClientContext);
+			if (response.getStatusLine().getStatusCode() == 200) {
+				HttpEntity entity = response.getEntity();
+				if (entity != null) {
+					String content = EntityUtils.toString(entity);
+					JSONObject jsonObject = JSON.parseObject(content);
+					if ((jsonObject.getInteger("status") == 200)) {
+						resultBean.setReturnObj(jsonObject.getJSONObject("data").getJSONObject("productInfo").getInteger("freightMoney"));
+						resultBean.setResultCode(0);
+					} else {
+						resultBean.setReturnMsg(jsonObject.getString("message"));
+					}
+				}
+			}
+		} catch (Exception e) {
+			resultBean.setReturnMsg("获取运费失败 " + e.getMessage());
 		}
 		return resultBean;
 	}

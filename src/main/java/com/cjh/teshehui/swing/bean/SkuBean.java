@@ -5,6 +5,10 @@ import java.io.Serializable;
 public class SkuBean implements Serializable {
 
 	private String supplierId;
+	
+	private String storeId;
+	
+	private Integer freightMoney; 
 
 	public String getSupplierId() {
 		return supplierId;
@@ -80,6 +84,22 @@ public class SkuBean implements Serializable {
 
 	public void setProductName(String productName) {
 		this.productName = productName;
+	}
+
+	public String getStoreId() {
+		return storeId;
+	}
+
+	public void setStoreId(String storeId) {
+		this.storeId = storeId;
+	}
+
+	public Integer getFreightMoney() {
+		return freightMoney;
+	}
+
+	public void setFreightMoney(Integer freightMoney) {
+		this.freightMoney = freightMoney;
 	}
 
 	private Integer skuId;
