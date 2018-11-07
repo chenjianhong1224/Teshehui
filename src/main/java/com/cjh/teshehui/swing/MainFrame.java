@@ -404,7 +404,7 @@ public class MainFrame extends JFrame {
 		JFormattedTextField formattedTextField_4 = new JFormattedTextField(nf);
 		formattedTextField_4.setBounds(644, 59, 32, 24);
 		formattedTextField_4.setValue(1);
-		formattedTextField_4.setEditable(false);
+//		formattedTextField_4.setEditable(false);
 		panel_2.add(formattedTextField_4);
 
 		JLabel lblNewLabel_6 = new JLabel("轮询时间");
@@ -475,7 +475,7 @@ public class MainFrame extends JFrame {
 
 		JPanel panel_3 = new JPanel(new BorderLayout());
 		panel_3.setBorder(new TitledBorder(null, "", TitledBorder.LEADING, TitledBorder.TOP, null, null));
-		panel_3.setBounds(10, 191, 1158, 154);
+		panel_3.setBounds(10, 191, 1158, 254);
 		contentPane.add(panel_3);
 
 		String[] columnNames = { "任务名", "时间", "执行描述" };

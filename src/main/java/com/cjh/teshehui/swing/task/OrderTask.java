@@ -46,6 +46,7 @@ public class OrderTask implements Runnable {
 	public void run() {
 		ViewMsgBean msg = new ViewMsgBean();
 		msg.setRow(rowIndex);
+		int successNum = 0;
 		try {
 			while (!taskFinishFlag.get()) {
 				Date now = new Date();
@@ -68,7 +69,11 @@ public class OrderTask implements Runnable {
 					continue;
 				}
 				if (now.getTime() > endTime.getTime()) {
-					msg.setMsg("到点了, 收工...");
+					if (successNum > 0) {
+						msg.setMsg("到点了, 收工，已成功" + successNum + "个");
+					} else {
+						msg.setMsg("到点了, 收工...");
+					}
 					ViewTask.msgQueue.put(msg);
 					return;
 				}
@@ -82,15 +87,22 @@ public class OrderTask implements Runnable {
 							if (queryBean.getSkuStock() > 0) {
 								returnBean = teshehuiService.createOrder(sku);
 								if (returnBean.getResultCode() == 0) {
-									msg.setMsg("下单成功啦, 收队...");
+									successNum++;
+									msg.setMsg("下单成功啦, 成功" + successNum + "个");
 									ViewTask.msgQueue.put(msg);
-									return;
+									if (successNum == Integer.valueOf(num)) {
+										return;
+									}
 								} else {
 									msg.setMsg(returnBean.getReturnMsg());
 									ViewTask.msgQueue.put(msg);
 								}
 							} else {
-								msg.setMsg("到点了, 开始干活...目前没有库存");
+								if (successNum > 0) {
+									msg.setMsg("到点了, 开始干活...目前没有库存，已成功" + successNum + "个");
+								} else {
+									msg.setMsg("到点了, 开始干活...目前没有库存");
+								}
 								ViewTask.msgQueue.put(msg);
 							}
 						}
