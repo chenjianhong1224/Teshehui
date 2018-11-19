@@ -1,5 +1,6 @@
 package com.cjh.teshehui.swing.task;
 
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -79,38 +80,40 @@ public class OrderTask implements Runnable {
 				}
 				TeshehuiService teshehuiService = (TeshehuiService) SpringContextUtils.getContext()
 						.getBean("teshehuiServiceImpl");
-				ReturnResultBean returnBean = teshehuiService.getProductStockInfo(sku.getProductCode());
+				// ReturnResultBean returnBean =
+				// teshehuiService.getProductStockInfo(sku.getProductCode());
+				// if (returnBean.getResultCode() == 0) {
+				// List<SkuBean> skuList = (List<SkuBean>)
+				// returnBean.getReturnObj();
+				// for (SkuBean queryBean : skuList) {
+				// if (queryBean.getSkuCode().equals(sku.getSkuCode())) {
+				// if (queryBean.getSkuStock() > 0) {
+				ReturnResultBean returnBean = teshehuiService.createOrder(sku);
 				if (returnBean.getResultCode() == 0) {
-					List<SkuBean> skuList = (List<SkuBean>) returnBean.getReturnObj();
-					for (SkuBean queryBean : skuList) {
-						if (queryBean.getSkuCode().equals(sku.getSkuCode())) {
-							if (queryBean.getSkuStock() > 0) {
-								returnBean = teshehuiService.createOrder(sku);
-								if (returnBean.getResultCode() == 0) {
-									successNum++;
-									msg.setMsg("下单成功啦, 成功" + successNum + "个");
-									ViewTask.msgQueue.put(msg);
-									if (successNum == Integer.valueOf(num)) {
-										return;
-									}
-								} else {
-									msg.setMsg(returnBean.getReturnMsg());
-									ViewTask.msgQueue.put(msg);
-								}
-							} else {
-								if (successNum > 0) {
-									msg.setMsg("到点了, 开始干活...目前没有库存，已成功" + successNum + "个");
-								} else {
-									msg.setMsg("到点了, 开始干活...目前没有库存");
-								}
-								ViewTask.msgQueue.put(msg);
-							}
-						}
+					successNum++;
+					msg.setMsg("成功啦, 成功" + successNum + "个");
+					ViewTask.msgQueue.put(msg);
+					if (successNum == Integer.valueOf(num)) {
+						return;
 					}
 				} else {
 					msg.setMsg(returnBean.getReturnMsg());
 					ViewTask.msgQueue.put(msg);
 				}
+				// } else {
+				// if (successNum > 0) {
+				// msg.setMsg("到点了, 开始干活...目前没有库存，已成功" + successNum + "个");
+				// } else {
+				// msg.setMsg("到点了, 开始干活...目前没有库存");
+				// }
+				// ViewTask.msgQueue.put(msg);
+				// }
+				// }
+				// }
+				// } else {
+				// msg.setMsg(returnBean.getReturnMsg());
+				// ViewTask.msgQueue.put(msg);
+				// }
 				Thread.sleep(sleepTime);
 			}
 		} catch (InterruptedException e) {

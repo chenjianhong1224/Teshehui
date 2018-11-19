@@ -4,11 +4,14 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.logging.LogFactory;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
+import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.CookieStore;
@@ -23,16 +26,21 @@ import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.cookie.Cookie;
 import org.apache.http.impl.client.BasicCookieStore;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.cookie.BasicClientCookie;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.cjh.teshehui.swing.bean.Proxys;
 import com.cjh.teshehui.swing.bean.ReturnResultBean;
 import com.cjh.teshehui.swing.bean.SkuBean;
 import com.cjh.teshehui.swing.bean.UserBean;
@@ -45,6 +53,12 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 
 	@Autowired
 	private TeshehuiSession teshehuiSession;
+
+	Logger log = LoggerFactory.getLogger(TeshehuiService.class);
+
+	private int noBodyCount = 0;
+
+	private int useSessionCount = 0;
 
 	@Override
 	public ReturnResultBean getLoginSmsCode(String phoneNo, String verifyImgCode) {
@@ -179,6 +193,7 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 		try {
 			uri = new URIBuilder(url).build();
 		} catch (URISyntaxException e) {
+			log.error("获取收货地址失败", e);
 			resultBean.setResultCode(-1);
 			resultBean.setReturnMsg(resultBean.getReturnMsg() + e.getMessage());
 			return resultBean;
@@ -195,7 +210,7 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 		headerList.add(new BasicHeader(HttpHeaders.USER_AGENT,
 				"Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0"));
 		headerList.add(new BasicHeader("X-Requested-With", "XMLHttpRequest"));
-		HttpClient httpClient = HttpClients.custom()
+		CloseableHttpClient httpClient = HttpClients.custom()
 				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
 				.setDefaultHeaders(headerList).setDefaultCookieStore(teshehuiSession.getCookieStore()).build();
 		HttpUriRequest httpUriRequest = RequestBuilder.get().setUri(uri).build();
@@ -219,6 +234,7 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 					resultBean.setResultCode(0);
 				}
 			}
+			httpClient.close();
 		} catch (Exception e) {
 			resultBean.setReturnMsg("获取收货地址失败 " + e.getMessage());
 		}
@@ -242,7 +258,7 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 		headerList.add(new BasicHeader(HttpHeaders.USER_AGENT,
 				"Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0"));
 		headerList.add(new BasicHeader("X-Requested-With", "XMLHttpRequest"));
-		HttpClient httpClient = HttpClients.custom()
+		CloseableHttpClient httpClient = HttpClients.custom()
 				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
 				.setDefaultHeaders(headerList).setDefaultCookieStore(teshehuiSession.getCookieStore())
 				.setDefaultHeaders(headerList).build();
@@ -287,6 +303,7 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 					}
 				}
 			}
+			httpClient.close();
 		} catch (Exception e) {
 			resultBean.setReturnMsg("获取用户信息失败 " + e.getMessage());
 		}
@@ -310,10 +327,44 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 		headerList.add(new BasicHeader(HttpHeaders.USER_AGENT,
 				"Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0"));
 		headerList.add(new BasicHeader("X-Requested-With", "XMLHttpRequest"));
-		HttpClient httpClient = HttpClients.custom()
-				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
-				.setDefaultHeaders(headerList).setDefaultCookieStore(teshehuiSession.getCookieStore())
-				.setDefaultHeaders(headerList).build();
+		CloseableHttpClient httpClient = null;
+		if (noBodyCount < 3) {
+			httpClient = HttpClients.custom()
+					.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+					.setDefaultHeaders(headerList).build();
+			System.out.println("匿名用户测试库存");
+			noBodyCount++;
+			useSessionCount = 0;
+		} else {
+			CookieStore cookieStore = teshehuiSession.getCookieStore();
+			httpClient = HttpClients.custom()
+					.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+					.setDefaultHeaders(headerList).setDefaultCookieStore(cookieStore).setDefaultHeaders(headerList)
+					.build();
+			String webguid = "";
+			for (Cookie cookie : cookieStore.getCookies()) {
+				if (cookie.getName().equals("webguid")) {
+					webguid = cookie.getValue();
+				}
+			}
+			System.out.println("会话" + teshehuiSession.nowSessionIndex + ", webguid = " + webguid + ",用户测试库存");
+			useSessionCount++;
+			if (useSessionCount == teshehuiSession.sessionNum) {
+				noBodyCount = 0;
+			}
+		}
+
+		// // 设置代理IP、端口、协议（请分别替换）
+		// String[] addr = Proxys.getInstance().getProxys().split(":");
+		// System.out.println("代理为=" + addr[0] + ":" + addr[1]);
+		// HttpHost proxy = new HttpHost(addr[0], Integer.valueOf(addr[1]),
+		// "http");
+		// // 把代理设置到请求配置
+		// RequestConfig defaultRequestConfig =
+		// RequestConfig.custom().setProxy(proxy).build();
+		// httpClient =
+		// HttpClients.custom().setDefaultRequestConfig(defaultRequestConfig).setDefaultHeaders(headerList)
+		// .build();
 		URI uri = null;
 		try {
 			String[] tmps = url.split("/");
@@ -322,14 +373,15 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 		} catch (Exception e) {
 			resultBean.setResultCode(-1);
 			resultBean.setReturnMsg("获取库存失败 " + e.getMessage());
+			log.error("获取库存失败 ", e);
 			return resultBean;
 		}
 		try {
 			HttpUriRequest httpUriRequest = RequestBuilder.get().setUri(uri).build();
 			HttpClientContext httpClientContext = HttpClientContext.create();
 			HttpResponse response = httpClient.execute(httpUriRequest, httpClientContext);
+			HttpEntity entity = response.getEntity();
 			if (response.getStatusLine().getStatusCode() == 200) {
-				HttpEntity entity = response.getEntity();
 				if (entity != null) {
 					String content = EntityUtils.toString(entity);
 					JSONObject jsonObject = JSON.parseObject(content);
@@ -357,11 +409,19 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 						}
 						resultBean.setReturnObj(skuList);
 						resultBean.setResultCode(0);
+					} else {
+						log.error("获取库存返回内容={}", content);
+						resultBean.setReturnMsg("获取库存失败 " + jsonObject.getString("message"));
 					}
 				}
+			} else {
+				log.error("获取库存失败 http 返回码 {}, 返回内容={}", response.getStatusLine().getStatusCode(),
+						EntityUtils.toString(entity));
 			}
+			httpClient.close();
 		} catch (Exception e) {
 			resultBean.setReturnMsg("获取库存失败 " + e.getMessage());
+			log.error("获取库存失败 ", e);
 		}
 		return resultBean;
 	}
@@ -371,7 +431,7 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 		ReturnResultBean returnFreightBean = getFreightAmount(bean);
 		if (returnFreightBean.getResultCode() != 0) {
 			returnFreightBean.setResultCode(-1);
-			returnFreightBean.setReturnMsg("获取运费失败");
+			returnFreightBean.setReturnMsg("获取运费失败:" + returnFreightBean.getReturnMsg());
 			return returnFreightBean;
 		}
 		bean.setFreightMoney((Integer) returnFreightBean.getReturnObj());
@@ -389,7 +449,7 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 		headerList.add(new BasicHeader(HttpHeaders.USER_AGENT,
 				"Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0"));
 		headerList.add(new BasicHeader("X-Requested-With", "XMLHttpRequest"));
-		HttpClient httpClient = HttpClients.custom()
+		CloseableHttpClient httpClient = HttpClients.custom()
 				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
 				.setDefaultHeaders(headerList).setDefaultCookieStore(teshehuiSession.getCookieStore())
 				.setDefaultHeaders(headerList).build();
@@ -450,6 +510,7 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 					}
 				}
 			}
+			httpClient.close();
 		} catch (Exception e) {
 			resultBean.setReturnMsg("下单失败 " + e.getMessage());
 		}
@@ -471,7 +532,7 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 		headerList.add(new BasicHeader(HttpHeaders.USER_AGENT,
 				"Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0"));
 		headerList.add(new BasicHeader("X-Requested-With", "XMLHttpRequest"));
-		HttpClient httpClient = HttpClients.custom()
+		CloseableHttpClient httpClient = HttpClients.custom()
 				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
 				.setDefaultHeaders(headerList).setDefaultCookieStore(teshehuiSession.getCookieStore())
 				.setDefaultHeaders(headerList).build();
@@ -499,13 +560,19 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 					String content = EntityUtils.toString(entity);
 					JSONObject jsonObject = JSON.parseObject(content);
 					if ((jsonObject.getInteger("status") == 200)) {
-						resultBean.setReturnObj(jsonObject.getJSONObject("data").getJSONObject("productInfo").getInteger("freightMoney"));
-						resultBean.setResultCode(0);
+						if (jsonObject.getJSONObject("data").getJSONObject("productInfo").getInteger("shelves") != 0) {
+							resultBean.setReturnObj(jsonObject.getJSONObject("data").getJSONObject("productInfo")
+									.getInteger("freightMoney"));
+							resultBean.setResultCode(0);
+						} else {
+							resultBean.setReturnMsg("该商品还未上架");
+						}
 					} else {
 						resultBean.setReturnMsg(jsonObject.getString("message"));
 					}
 				}
 			}
+			httpClient.close();
 		} catch (Exception e) {
 			resultBean.setReturnMsg("获取运费失败 " + e.getMessage());
 		}

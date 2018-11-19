@@ -44,6 +44,7 @@ import javax.swing.JButton;
 import javax.swing.JTextPane;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.DateFormat;
@@ -135,6 +136,7 @@ public class MainFrame extends JFrame {
 			loginButton.setText("登出");
 		} else {
 			loginButton.setText("登录");
+			phoneNoField.setEditable(true);
 		}
 	}
 
@@ -218,6 +220,18 @@ public class MainFrame extends JFrame {
 		sessionLoginButton.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseClicked(MouseEvent e) {
+				TeshehuiSession teshehuiSession = (TeshehuiSession) SpringContextUtils.getContext()
+						.getBean("teshehuiSession");
+				boolean sessionAble = false;
+				try {
+					sessionAble = teshehuiSession.checkSession();
+				} catch (Exception e1) {
+					e1.printStackTrace();
+				}
+				if (!sessionAble) {
+					JOptionPane.showMessageDialog(loginPane, "会话可能已经失效，请用短信验证码登录软件");
+					return;
+				}
 				teshehuiService = (TeshehuiService) SpringContextUtils.getContext().getBean("teshehuiServiceImpl");
 				if (teshehuiService.getUserInfo().getResultCode() != 0) {
 					JOptionPane.showMessageDialog(loginPane, "会话可能已经失效，请用短信验证码登录软件");
@@ -228,11 +242,11 @@ public class MainFrame extends JFrame {
 					JOptionPane.showMessageDialog(loginPane, "会话可能已经失效，请用短信验证码登录软件");
 					return;
 				}
-				TeshehuiSession teshehuiSession = (TeshehuiSession) SpringContextUtils.getContext()
-						.getBean("teshehuiSession");
-				addressLabel.setText((teshehuiSession.getUserBean().getNickName() == null ? ""
-						: teshehuiSession.getUserBean().getNickName()) + " 电话:"
-						+ teshehuiSession.getUserBean().getMobilePhone() + ", 地址:"
+
+				addressLabel.setText("共登录会话" + teshehuiSession.sessionNum + "个，当前会话："
+						+ (teshehuiSession.getUserBean().getNickName() == null ? ""
+								: teshehuiSession.getUserBean().getNickName())
+						+ " 电话:" + teshehuiSession.getUserBean().getMobilePhone() + ", 地址:"
 						+ teshehuiSession.getUserBean().getAddressDetail());
 				doLoginOrOut(true);
 				urlField.requestFocus();
@@ -277,17 +291,29 @@ public class MainFrame extends JFrame {
 					JOptionPane.showMessageDialog(loginPane, returnBean.getReturnMsg());
 					return;
 				}
-				returnBean = teshehuiService.getAddress();
-				if (returnBean.getResultCode() != 0) {
-					JOptionPane.showMessageDialog(loginPane, returnBean.getReturnMsg() + " 请设置好地址后重新登录软件");
-					return;
+				TeshehuiSession sessionService = (TeshehuiSession) SpringContextUtils.getContext()
+						.getBean("teshehuiSession");
+				int n = 1;
+				if (sessionService.sessionNum < 1) {
+					n = JOptionPane.showConfirmDialog(null, "继续登录？", "", JOptionPane.YES_NO_OPTION);
 				}
-				addressLabel.setText((teshehuiSession.getUserBean().getNickName() == null ? ""
-						: teshehuiSession.getUserBean().getNickName()) + " 电话:"
-						+ teshehuiSession.getUserBean().getMobilePhone() + ", 地址:"
-						+ teshehuiSession.getUserBean().getAddressDetail());
-				doLoginOrOut(true);
-				urlField.requestFocus();
+				if (n != 0) {
+					returnBean = teshehuiService.getAddress();
+					if (returnBean.getResultCode() != 0) {
+						JOptionPane.showMessageDialog(loginPane, returnBean.getReturnMsg() + " 请设置好地址后重新登录软件");
+						return;
+					}
+					addressLabel.setText("共登录会话" + sessionService.sessionNum + "个，当前会话："
+							+ (teshehuiSession.getUserBean().getNickName() == null ? ""
+									: teshehuiSession.getUserBean().getNickName())
+							+ " 电话:" + teshehuiSession.getUserBean().getMobilePhone() + ", 地址:"
+							+ teshehuiSession.getUserBean().getAddressDetail());
+					doLoginOrOut(true);
+					urlField.requestFocus();
+				} else {
+					phoneNoField.setEditable(false);
+					getVerfiyButton.doClick();
+				}
 			}
 		});
 		loginPane.add(loginButton);
@@ -334,7 +360,7 @@ public class MainFrame extends JFrame {
 
 		taskBeans = Lists.newArrayList();
 		urlField = new JTextField();
-		urlField.setText("https://m.teshehui.com/goods/detail/070900429526");
+		urlField.setText("https://m.teshehui.com/goods/detail/070400430054");
 		urlField.setBounds(229, 13, 524, 24);
 		panel_2.add(urlField);
 		urlField.setColumns(10);
@@ -404,7 +430,7 @@ public class MainFrame extends JFrame {
 		JFormattedTextField formattedTextField_4 = new JFormattedTextField(nf);
 		formattedTextField_4.setBounds(644, 59, 32, 24);
 		formattedTextField_4.setValue(1);
-//		formattedTextField_4.setEditable(false);
+		// formattedTextField_4.setEditable(false);
 		panel_2.add(formattedTextField_4);
 
 		JLabel lblNewLabel_6 = new JLabel("轮询时间");
@@ -413,7 +439,8 @@ public class MainFrame extends JFrame {
 
 		lunxuTime = new JFormattedTextField();
 		lunxuTime.setBounds(511, 60, 32, 21);
-		lunxuTime.setText("10");
+		lunxuTime.setText("3");
+		// lunxuTime.setEditable(false);
 		panel_2.add(lunxuTime);
 
 		excuteButton = new JButton("开始执行");
@@ -458,10 +485,14 @@ public class MainFrame extends JFrame {
 		addTaskButton.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseClicked(MouseEvent e) {
+				// if (taskBeans.size() > 5) {
+				// JOptionPane.showMessageDialog(panel_2, "考虑性能问题，无法添加更多任务");
+				// return;
+				// }
 				if (skuComboBox.getSelectedItem() != null
 						&& !StringUtils.isEmpty((String) skuComboBox.getSelectedItem())) {
 					String key = (String) skuComboBox.getSelectedItem() + " " + productNameLabel.getText();
-					String row[] = { key, "", "" };
+					String row[] = { key, "", "", "" };
 					dtm.addRow(row);
 					taskBeans.add(skuComboBoxMap.get(key));
 				} else {
@@ -478,7 +509,7 @@ public class MainFrame extends JFrame {
 		panel_3.setBounds(10, 191, 1158, 254);
 		contentPane.add(panel_3);
 
-		String[] columnNames = { "任务名", "时间", "执行描述" };
+		String[] columnNames = { "任务名", "时间", "是否成功", "执行描述" };
 		dtm = new DefaultTableModel(columnNames, 0);
 		table = new JTable(dtm);
 		table.setBorder(new EtchedBorder(EtchedBorder.LOWERED, null, null));
@@ -489,7 +520,10 @@ public class MainFrame extends JFrame {
 		table.getColumnModel().getColumn(1).setPreferredWidth(120);
 		table.getColumnModel().getColumn(1).setMaxWidth(160);
 		table.getColumnModel().getColumn(1).sizeWidthToFit();
+		table.getColumnModel().getColumn(2).setPreferredWidth(120);
+		table.getColumnModel().getColumn(2).setMaxWidth(160);
 		table.getColumnModel().getColumn(2).sizeWidthToFit();
+		table.getColumnModel().getColumn(3).sizeWidthToFit();
 
 		table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 		panel_3.add(table.getTableHeader(), BorderLayout.NORTH);
