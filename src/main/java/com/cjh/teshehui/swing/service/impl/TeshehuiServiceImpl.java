@@ -450,7 +450,8 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 				"Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0"));
 		headerList.add(new BasicHeader("X-Requested-With", "XMLHttpRequest"));
 		CloseableHttpClient httpClient = HttpClients.custom()
-				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+				.setDefaultRequestConfig(RequestConfig.custom().setSocketTimeout(3000).setConnectTimeout(5000)
+						.setConnectionRequestTimeout(3000).setCookieSpec(CookieSpecs.STANDARD).build())
 				.setDefaultHeaders(headerList).setDefaultCookieStore(teshehuiSession.getCookieStore())
 				.setDefaultHeaders(headerList).build();
 		String url = "https://m.teshehui.com/order/createorder";
@@ -533,7 +534,8 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 				"Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0"));
 		headerList.add(new BasicHeader("X-Requested-With", "XMLHttpRequest"));
 		CloseableHttpClient httpClient = HttpClients.custom()
-				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+				.setDefaultRequestConfig(RequestConfig.custom().setSocketTimeout(5000).setConnectTimeout(5000)
+						.setConnectionRequestTimeout(5000).setCookieSpec(CookieSpecs.STANDARD).build())
 				.setDefaultHeaders(headerList).setDefaultCookieStore(teshehuiSession.getCookieStore())
 				.setDefaultHeaders(headerList).build();
 		String url = "https://m.teshehui.com/cgi/getProductFreightFee";

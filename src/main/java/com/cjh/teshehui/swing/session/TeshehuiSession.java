@@ -98,7 +98,11 @@ public class TeshehuiSession {
 	private CookieStore getLocalCookieStore() {
 		cookieStore = null;
 		try {
-			nowSessionIndex = count % sessionNum;
+			if (sessionNum != 0) {
+				nowSessionIndex = count % sessionNum;
+			} else {
+				nowSessionIndex = 0;
+			}
 			cookieStore = readCookieStore(cookieName[nowSessionIndex]);
 			count++;
 		} catch (Exception e) {
