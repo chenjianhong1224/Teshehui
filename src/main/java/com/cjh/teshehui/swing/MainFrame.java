@@ -361,7 +361,7 @@ public class MainFrame extends JFrame {
 
 		taskBeans = Lists.newArrayList();
 		urlField = new JTextField();
-		urlField.setText("https://m.teshehui.com/goods/detail/070400430054");
+		urlField.setText("https://m.teshehui.com/goods/detail/070400430057");
 		urlField.setBounds(229, 13, 524, 24);
 		panel_2.add(urlField);
 		urlField.setColumns(10);

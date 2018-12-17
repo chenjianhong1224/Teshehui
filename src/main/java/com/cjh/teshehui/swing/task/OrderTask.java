@@ -88,7 +88,8 @@ public class OrderTask implements Runnable {
 				// for (SkuBean queryBean : skuList) {
 				// if (queryBean.getSkuCode().equals(sku.getSkuCode())) {
 				// if (queryBean.getSkuStock() > 0) {
-				ReturnResultBean returnBean = teshehuiService.createOrder(sku);
+				ReturnResultBean returnBean = new ReturnResultBean();
+				returnBean = teshehuiService.createOrder(sku);
 				if (returnBean.getResultCode() == 0) {
 					successNum++;
 					msg.setMsg("成功啦, 成功" + successNum + "个");

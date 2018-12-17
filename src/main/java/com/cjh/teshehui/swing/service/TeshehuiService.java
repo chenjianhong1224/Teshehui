@@ -20,4 +20,8 @@ public interface TeshehuiService {
 	ReturnResultBean getCheckCode();
 
 	ReturnResultBean checkCode(String verifyImgCode);
+	
+	ReturnResultBean getCoupon();
+	
+	ReturnResultBean getMyCoupon();
 }

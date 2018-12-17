@@ -1,5 +1,7 @@
 package com.cjh.teshehui.swing.service.impl;
 
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Date;
@@ -596,9 +598,19 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 					JSONObject jsonObject = JSON.parseObject(content);
 					if ((jsonObject.getInteger("status") == 200)) {
 						if (jsonObject.getJSONObject("data").getJSONObject("productInfo").getInteger("shelves") != 0) {
-							resultBean.setReturnObj(jsonObject.getJSONObject("data").getJSONObject("productInfo")
-									.getInteger("freightMoney"));
-							resultBean.setResultCode(0);
+							JSONArray skuList = jsonObject.getJSONObject("data").getJSONObject("productInfo")
+									.getJSONArray("skuList");
+							if (skuList != null) {
+								for (int j = 0; j < skuList.size(); j++) {
+									if (bean.getSkuCode().equals(skuList.getJSONObject(j).getString("skuCode"))) {
+										if (skuList.getJSONObject(j).getInteger("skuStock") > 0) {
+											resultBean.setReturnObj(jsonObject.getJSONObject("data")
+													.getJSONObject("productInfo").getInteger("freightMoney"));
+											resultBean.setResultCode(0);
+										}
+									}
+								}
+							}
 						} else {
 							resultBean.setReturnMsg("该商品还未上架");
 						}
@@ -672,4 +684,137 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 		return resultBean;
 	}
 
+	@Override
+	public ReturnResultBean getCoupon() {
+		ReturnResultBean resultBean = new ReturnResultBean();
+		resultBean.setResultCode(-1);
+		resultBean.setReturnMsg("获取优惠券失败");
+		List<Header> headerList = Lists.newArrayList();
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT, "*/*"));
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT_ENCODING, "gzip, deflate, br"));
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT_LANGUAGE,
+				"zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2"));
+		headerList.add(new BasicHeader(HttpHeaders.CONNECTION, "keep-alive"));
+		headerList.add(new BasicHeader(HttpHeaders.HOST, "m.teshehui.com"));
+		headerList.add(new BasicHeader("TE", "Trailers"));
+		headerList.add(new BasicHeader(HttpHeaders.USER_AGENT,
+				"Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0"));
+		headerList.add(new BasicHeader("X-Requested-With", "XMLHttpRequest"));
+		CloseableHttpClient httpClient = null;
+
+		CookieStore cookieStore = teshehuiSession.getCookieStore();
+		httpClient = HttpClients.custom()
+				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+				.setDefaultHeaders(headerList).setDefaultCookieStore(cookieStore).setDefaultHeaders(headerList).build();
+		String url = "https://m.teshehui.com/cgi/getcoupon";
+		URI uri = null;
+		try {
+			uri = new URIBuilder(url).build();
+		} catch (URISyntaxException e) {
+			resultBean.setResultCode(-1);
+			resultBean.setReturnMsg("获取优惠券失败" + e.getMessage());
+			return resultBean;
+		}
+		List<NameValuePair> params = Lists.newArrayList();
+		params.add(new BasicNameValuePair("couponBatchCode", "CB004830"));
+		try {
+			HttpUriRequest httpUriRequest;
+			httpUriRequest = RequestBuilder.post().setEntity(new UrlEncodedFormEntity(params, "UTF-8")).setUri(uri)
+					.build();
+			HttpClientContext httpClientContext = HttpClientContext.create();
+			HttpResponse response = httpClient.execute(httpUriRequest, httpClientContext);
+			if (response.getStatusLine().getStatusCode() == 200) {
+				HttpEntity entity = response.getEntity();
+				if (entity != null) {
+					String content = EntityUtils.toString(entity);
+					JSONObject jsonObject = JSON.parseObject(content);
+					if ((jsonObject.getInteger("status") == 200)
+							&& jsonObject.getString("isObtainSuccess").equals("1")) {
+						resultBean.setResultCode(0);
+					} else {
+						resultBean.setReturnMsg(resultBean.getReturnMsg() + jsonObject.getInteger("couponMessage"));
+					}
+				}
+			}
+		} catch (Exception e) {
+			resultBean.setReturnMsg("获取优惠券失败" + e.getMessage());
+		}
+		return resultBean;
+	}
+
+	@Override
+	public ReturnResultBean getMyCoupon() {
+		ReturnResultBean resultBean = new ReturnResultBean();
+		resultBean.setResultCode(-1);
+		resultBean.setReturnMsg("获取拥有的优惠券失败");
+		List<Header> headerList = Lists.newArrayList();
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT, "*/*"));
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT_ENCODING, "gzip, deflate, br"));
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT_LANGUAGE,
+				"zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2"));
+		headerList.add(new BasicHeader(HttpHeaders.CONNECTION, "keep-alive"));
+		headerList.add(new BasicHeader(HttpHeaders.HOST, "m.teshehui.com"));
+		headerList.add(new BasicHeader("TE", "Trailers"));
+		headerList.add(new BasicHeader(HttpHeaders.USER_AGENT,
+				"Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0"));
+		headerList.add(new BasicHeader("X-Requested-With", "XMLHttpRequest"));
+		CloseableHttpClient httpClient = null;
+
+		CookieStore cookieStore = teshehuiSession.getCookieStore();
+		httpClient = HttpClients.custom()
+				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+				.setDefaultHeaders(headerList).setDefaultCookieStore(cookieStore).setDefaultHeaders(headerList).build();
+		String url = "https://m.teshehui.com/cgi/getcouponlist";
+		URI uri = null;
+		try {
+			uri = new URIBuilder(url).build();
+		} catch (URISyntaxException e) {
+			resultBean.setResultCode(-1);
+			resultBean.setReturnMsg("获取拥有的优惠券失败" + e.getMessage());
+			return resultBean;
+		}
+		List<NameValuePair> params = Lists.newArrayList();
+		params.add(new BasicNameValuePair("pageNo", "1"));
+		params.add(new BasicNameValuePair("pageSize", "10"));
+		params.add(new BasicNameValuePair("status", "10"));
+		try {
+			HttpUriRequest httpUriRequest;
+			httpUriRequest = RequestBuilder.post().setEntity(new UrlEncodedFormEntity(params, "UTF-8")).setUri(uri)
+					.build();
+			HttpClientContext httpClientContext = HttpClientContext.create();
+			HttpResponse response = httpClient.execute(httpUriRequest, httpClientContext);
+			if (response.getStatusLine().getStatusCode() == 200) {
+				HttpEntity entity = response.getEntity();
+				if (entity != null) {
+					String content = EntityUtils.toString(entity);
+					JSONObject jsonObject = JSON.parseObject(content);
+					if (jsonObject.getInteger("status") == 200) {
+						JSONArray items = jsonObject.getJSONObject("pageModel").getJSONArray("items");
+						boolean getSuccess = false;
+						List<String> couponCodes = Lists.newArrayList();
+						if (items.size() > 0) {
+							for (int i = 0; i < items.size(); i++) {
+								if (items.getJSONObject(i).getString("couponBatchCode").equals("CB004830")) {
+									if (items.getJSONObject(i).getString("status").equals("10")) {
+										couponCodes.add(items.getJSONObject(i).getString("couponCode"));
+										getSuccess = true;
+									}
+								}
+							}
+						}
+						if (getSuccess) {
+							resultBean.setReturnObj(couponCodes);
+							resultBean.setResultCode(0);
+							return resultBean;
+						}
+					} else {
+						resultBean.setReturnMsg("无优惠券");
+					}
+				}
+			}
+		} catch (Exception e) {
+			resultBean.setReturnMsg("获取拥有的优惠券失败" + e.getMessage());
+		}
+		return resultBean;
+	}
 }
