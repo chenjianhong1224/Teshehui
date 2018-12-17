@@ -56,10 +56,6 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 
 	Logger log = LoggerFactory.getLogger(TeshehuiService.class);
 
-	private int noBodyCount = 0;
-
-	private int useSessionCount = 0;
-
 	@Override
 	public ReturnResultBean getLoginSmsCode(String phoneNo, String verifyImgCode) {
 		ReturnResultBean resultBean = new ReturnResultBean();
@@ -310,7 +306,61 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 		return resultBean;
 	}
 
-	@Override
+	public ReturnResultBean getCheckCode() {
+		ReturnResultBean resultBean = new ReturnResultBean();
+		resultBean.setResultCode(-1);
+		resultBean.setReturnMsg("验证码失败");
+		List<Header> headerList = Lists.newArrayList();
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT, "*/*"));
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT_ENCODING, "gzip, deflate, br"));
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT_LANGUAGE,
+				"zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2"));
+		headerList.add(new BasicHeader(HttpHeaders.CONNECTION, "keep-alive"));
+		headerList.add(new BasicHeader(HttpHeaders.HOST, "m.teshehui.com"));
+		headerList.add(new BasicHeader(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded"));
+		headerList.add(new BasicHeader("TE", "Trailers"));
+		headerList.add(new BasicHeader(HttpHeaders.USER_AGENT,
+				"Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0"));
+		headerList.add(new BasicHeader("X-Requested-With", "XMLHttpRequest"));
+		CloseableHttpClient httpClient = null;
+
+		CookieStore cookieStore = teshehuiSession.getCookieStore();
+		httpClient = HttpClients.custom()
+				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+				.setDefaultHeaders(headerList).setDefaultCookieStore(cookieStore).setDefaultHeaders(headerList).build();
+		URI uri = null;
+		try {
+			uri = new URIBuilder("https://m.teshehui.com/user/validate/get_check_code?source=1").build();
+		} catch (Exception e) {
+			resultBean.setResultCode(-1);
+			resultBean.setReturnMsg("获取库存失败 " + e.getMessage());
+			log.error("获取库存失败 ", e);
+			return resultBean;
+		}
+		try {
+			HttpUriRequest httpUriRequest = RequestBuilder.get().setUri(uri).build();
+			HttpClientContext httpClientContext = HttpClientContext.create();
+			HttpResponse response = httpClient.execute(httpUriRequest, httpClientContext);
+			HttpEntity entity = response.getEntity();
+			if (response.getStatusLine().getStatusCode() == 200) {
+				if (entity != null) {
+					byte[] content = EntityUtils.toByteArray(entity);
+					resultBean.setReturnObj(content);
+					resultBean.setResultCode(0);
+				} else {
+					resultBean.setReturnMsg("获取人机验证码失败 ");
+				}
+			} else {
+				log.error("获取人机验证码失败 http 返回码 {}", response.getStatusLine().getStatusCode());
+			}
+			httpClient.close();
+		} catch (Exception e) {
+			resultBean.setReturnMsg("获取人机验证码失败 " + e.getMessage());
+			log.error("获取人机验证码失败 ", e);
+		}
+		return resultBean;
+	}
+
 	public ReturnResultBean getProductStockInfo(String url) {
 		ReturnResultBean resultBean = new ReturnResultBean();
 		resultBean.setResultCode(-1);
@@ -328,31 +378,11 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 				"Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0"));
 		headerList.add(new BasicHeader("X-Requested-With", "XMLHttpRequest"));
 		CloseableHttpClient httpClient = null;
-		if (noBodyCount < 3) {
-			httpClient = HttpClients.custom()
-					.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
-					.setDefaultHeaders(headerList).build();
-			System.out.println("匿名用户测试库存");
-			noBodyCount++;
-			useSessionCount = 0;
-		} else {
-			CookieStore cookieStore = teshehuiSession.getCookieStore();
-			httpClient = HttpClients.custom()
-					.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
-					.setDefaultHeaders(headerList).setDefaultCookieStore(cookieStore).setDefaultHeaders(headerList)
-					.build();
-			String webguid = "";
-			for (Cookie cookie : cookieStore.getCookies()) {
-				if (cookie.getName().equals("webguid")) {
-					webguid = cookie.getValue();
-				}
-			}
-			System.out.println("会话" + teshehuiSession.nowSessionIndex + ", webguid = " + webguid + ",用户测试库存");
-			useSessionCount++;
-			if (useSessionCount == teshehuiSession.sessionNum) {
-				noBodyCount = 0;
-			}
-		}
+
+		CookieStore cookieStore = teshehuiSession.getCookieStore();
+		httpClient = HttpClients.custom()
+				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+				.setDefaultHeaders(headerList).setDefaultCookieStore(cookieStore).setDefaultHeaders(headerList).build();
 
 		// // 设置代理IP、端口、协议（请分别替换）
 		// String[] addr = Proxys.getInstance().getProxys().split(":");
@@ -412,6 +442,9 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 					} else {
 						log.error("获取库存返回内容={}", content);
 						resultBean.setReturnMsg("获取库存失败 " + jsonObject.getString("message"));
+						if (jsonObject.getString("code").equals("20416014")) {
+							resultBean.setResultCode(7777);
+						}
 					}
 				}
 			} else {
@@ -577,6 +610,64 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 			httpClient.close();
 		} catch (Exception e) {
 			resultBean.setReturnMsg("获取运费失败 " + e.getMessage());
+		}
+		return resultBean;
+	}
+
+	@Override
+	public ReturnResultBean checkCode(String verifyImgCode) {
+		ReturnResultBean resultBean = new ReturnResultBean();
+		resultBean.setResultCode(-1);
+		resultBean.setReturnMsg("人机验证码校验失败");
+		List<Header> headerList = Lists.newArrayList();
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT, "*/*"));
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT_ENCODING, "gzip, deflate, br"));
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT_LANGUAGE,
+				"zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2"));
+		headerList.add(new BasicHeader(HttpHeaders.CONNECTION, "keep-alive"));
+		headerList.add(new BasicHeader(HttpHeaders.HOST, "m.teshehui.com"));
+		headerList.add(new BasicHeader("TE", "Trailers"));
+		headerList.add(new BasicHeader(HttpHeaders.USER_AGENT,
+				"Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0"));
+		headerList.add(new BasicHeader("X-Requested-With", "XMLHttpRequest"));
+		CloseableHttpClient httpClient = null;
+
+		CookieStore cookieStore = teshehuiSession.getCookieStore();
+		httpClient = HttpClients.custom()
+				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+				.setDefaultHeaders(headerList).setDefaultCookieStore(cookieStore).setDefaultHeaders(headerList).build();
+		String url = "https://m.teshehui.com/user/validate/check_code";
+		URI uri = null;
+		try {
+			uri = new URIBuilder(url).build();
+		} catch (URISyntaxException e) {
+			resultBean.setResultCode(-1);
+			resultBean.setReturnMsg("获取短信失败 " + e.getMessage());
+			return resultBean;
+		}
+		List<NameValuePair> params = Lists.newArrayList();
+		params.add(new BasicNameValuePair("code", verifyImgCode));
+		params.add(new BasicNameValuePair("source", "1"));
+		try {
+			HttpUriRequest httpUriRequest;
+			httpUriRequest = RequestBuilder.post().setEntity(new UrlEncodedFormEntity(params, "UTF-8")).setUri(uri)
+					.build();
+			HttpClientContext httpClientContext = HttpClientContext.create();
+			HttpResponse response = httpClient.execute(httpUriRequest, httpClientContext);
+			if (response.getStatusLine().getStatusCode() == 200) {
+				HttpEntity entity = response.getEntity();
+				if (entity != null) {
+					String content = EntityUtils.toString(entity);
+					JSONObject jsonObject = JSON.parseObject(content);
+					if ((jsonObject.getInteger("status") == 200) && jsonObject.getString("isPass").equals("true")) {
+						resultBean.setResultCode(0);
+					} else {
+						resultBean.setReturnMsg(resultBean.getReturnMsg() + jsonObject.getInteger("message"));
+					}
+				}
+			}
+		} catch (Exception e) {
+			resultBean.setReturnMsg("人机验证码校验失败" + e.getMessage());
 		}
 		return resultBean;
 	}

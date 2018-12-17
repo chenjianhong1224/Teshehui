@@ -16,4 +16,8 @@ public interface TeshehuiService {
 	ReturnResultBean getProductStockInfo(String url);
 	
 	ReturnResultBean createOrder(SkuBean bean);
+	
+	ReturnResultBean getCheckCode();
+
+	ReturnResultBean checkCode(String verifyImgCode);
 }

@@ -79,6 +79,7 @@ public class MainFrame extends JFrame {
 	private JPanel contentPane;
 	private JTextField phoneNoField;
 	private VerifyImgCodeJDialog vImgJDialog;
+	private VerifyImgCodeJDialog2 vImgJDialog2;
 	private JTextPane addressLabel;
 	private JLabel phoneNoLabel;
 	private JLabel verifyLabel;
@@ -335,12 +336,12 @@ public class MainFrame extends JFrame {
 				}
 				vImgJDialog = new VerifyImgCodeJDialog(MainFrame.this, phoneNoField.getText());
 				vImgJDialog.setVisible(true);
-				teshehuiService = (TeshehuiService) SpringContextUtils.getContext().getBean("teshehuiServiceImpl");
-				ReturnResultBean returnBean = teshehuiService.getLoginSmsCode(phoneNoField.getText(),
-						vImgJDialog.getVerifyImgCode());
 				if (StringUtils.isEmpty(vImgJDialog.getVerifyImgCode())) {
 					return;
 				}
+				teshehuiService = (TeshehuiService) SpringContextUtils.getContext().getBean("teshehuiServiceImpl");
+				ReturnResultBean returnBean = teshehuiService.getLoginSmsCode(phoneNoField.getText(),
+						vImgJDialog.getVerifyImgCode());
 				if (returnBean.getResultCode() != 0) {
 					JOptionPane.showMessageDialog(loginPane, returnBean.getReturnMsg());
 				}
@@ -376,6 +377,25 @@ public class MainFrame extends JFrame {
 						skuComboBoxMap.put(bean.getAttrValue() + " " + bean.getProductName(), bean);
 						productNameLabel.setText(bean.getProductName());
 						skuComboBox.addItem(bean.getAttrValue());
+					}
+				} else if (returnBean.getResultCode() == 7777) {
+					returnBean = teshehuiService.getCheckCode();
+					if (returnBean.getResultCode() == 0) {
+						vImgJDialog2 = new VerifyImgCodeJDialog2(MainFrame.this, (byte[]) returnBean.getReturnObj());
+						vImgJDialog2.setVisible(true);
+						if (StringUtils.isEmpty(vImgJDialog2.getVerifyImgCode())) {
+							return;
+						}
+						teshehuiService = (TeshehuiService) SpringContextUtils.getContext()
+								.getBean("teshehuiServiceImpl");
+						returnBean = teshehuiService.checkCode(vImgJDialog2.getVerifyImgCode());
+						if (returnBean.getResultCode() != 0) {
+							JOptionPane.showMessageDialog(loginPane, returnBean.getReturnMsg());
+						}
+						urlField.requestFocus();
+					} else {
+						JOptionPane.showMessageDialog(panel_2, returnBean.getReturnMsg());
+						urlField.requestFocus();
 					}
 				} else {
 					JOptionPane.showMessageDialog(panel_2, "请确认url是否正确");
@@ -485,10 +505,6 @@ public class MainFrame extends JFrame {
 		addTaskButton.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseClicked(MouseEvent e) {
-				// if (taskBeans.size() > 5) {
-				// JOptionPane.showMessageDialog(panel_2, "考虑性能问题，无法添加更多任务");
-				// return;
-				// }
 				if (skuComboBox.getSelectedItem() != null
 						&& !StringUtils.isEmpty((String) skuComboBox.getSelectedItem())) {
 					String key = (String) skuComboBox.getSelectedItem() + " " + productNameLabel.getText();
