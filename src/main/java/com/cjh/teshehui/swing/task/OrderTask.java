@@ -5,10 +5,12 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.cjh.teshehui.swing.bean.Coupon;
 import com.cjh.teshehui.swing.bean.ReturnResultBean;
 import com.cjh.teshehui.swing.bean.SkuBean;
 import com.cjh.teshehui.swing.bean.ViewMsgBean;
 import com.cjh.teshehui.swing.service.TeshehuiService;
+import com.cjh.teshehui.swing.session.TeshehuiSession;
 import com.cjh.teshehui.swing.utils.SpringContextUtils;
 
 public class OrderTask implements Runnable {
@@ -80,6 +82,8 @@ public class OrderTask implements Runnable {
 				}
 				TeshehuiService teshehuiService = (TeshehuiService) SpringContextUtils.getContext()
 						.getBean("teshehuiServiceImpl");
+				TeshehuiSession teshehuiSession = (TeshehuiSession) SpringContextUtils.getContext()
+						.getBean("teshehuiSession");
 				// ReturnResultBean returnBean =
 				// teshehuiService.getProductStockInfo(sku.getProductCode());
 				// if (returnBean.getResultCode() == 0) {
@@ -89,7 +93,25 @@ public class OrderTask implements Runnable {
 				// if (queryBean.getSkuCode().equals(sku.getSkuCode())) {
 				// if (queryBean.getSkuStock() > 0) {
 				ReturnResultBean returnBean = new ReturnResultBean();
-				returnBean = teshehuiService.createOrder(sku);
+				returnBean = teshehuiService.getPromotioninf(sku.getProductCode());
+				String couponBatchCode = "";
+				if (returnBean.getResultCode() == 0) {
+					couponBatchCode = (String) returnBean.getReturnObj();
+				}
+				if (teshehuiSession.getCouponList().size() < 2) {
+					returnBean = teshehuiService.getMyCoupon(couponBatchCode);
+					if (returnBean.getResultCode() == 0) {
+						List<Coupon> couponList = (List<Coupon>) returnBean.getReturnObj();
+						for (Coupon coupon : couponList) {
+							teshehuiSession.addCoupon(coupon);
+						}
+					}
+				}
+				if (teshehuiSession.getCouponList().size() < 2) {
+					teshehuiService.getCoupon(couponBatchCode);
+					teshehuiService.getCoupon(couponBatchCode);
+				}
+				returnBean = teshehuiService.createOrderUseMyCoupon(sku);
 				if (returnBean.getResultCode() == 0) {
 					successNum++;
 					msg.setMsg("成功啦, 成功" + successNum + "个");

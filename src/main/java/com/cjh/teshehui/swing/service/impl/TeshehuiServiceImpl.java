@@ -1,7 +1,5 @@
 package com.cjh.teshehui.swing.service.impl;
 
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl;
-
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Date;
@@ -42,6 +40,7 @@ import org.springframework.stereotype.Service;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.cjh.teshehui.swing.bean.Coupon;
 import com.cjh.teshehui.swing.bean.Proxys;
 import com.cjh.teshehui.swing.bean.ReturnResultBean;
 import com.cjh.teshehui.swing.bean.SkuBean;
@@ -685,7 +684,7 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 	}
 
 	@Override
-	public ReturnResultBean getCoupon() {
+	public ReturnResultBean getCoupon(String couponBatchCode) {
 		ReturnResultBean resultBean = new ReturnResultBean();
 		resultBean.setResultCode(-1);
 		resultBean.setReturnMsg("获取优惠券失败");
@@ -716,7 +715,7 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 			return resultBean;
 		}
 		List<NameValuePair> params = Lists.newArrayList();
-		params.add(new BasicNameValuePair("couponBatchCode", "CB004830"));
+		params.add(new BasicNameValuePair("couponBatchCode", couponBatchCode));
 		try {
 			HttpUriRequest httpUriRequest;
 			httpUriRequest = RequestBuilder.post().setEntity(new UrlEncodedFormEntity(params, "UTF-8")).setUri(uri)
@@ -743,7 +742,7 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 	}
 
 	@Override
-	public ReturnResultBean getMyCoupon() {
+	public ReturnResultBean getMyCoupon(String couponBatchCode) {
 		ReturnResultBean resultBean = new ReturnResultBean();
 		resultBean.setResultCode(-1);
 		resultBean.setReturnMsg("获取拥有的优惠券失败");
@@ -791,12 +790,16 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 					if (jsonObject.getInteger("status") == 200) {
 						JSONArray items = jsonObject.getJSONObject("pageModel").getJSONArray("items");
 						boolean getSuccess = false;
-						List<String> couponCodes = Lists.newArrayList();
+						List<Coupon> couponCodes = Lists.newArrayList();
 						if (items.size() > 0) {
 							for (int i = 0; i < items.size(); i++) {
-								if (items.getJSONObject(i).getString("couponBatchCode").equals("CB004830")) {
+								if (items.getJSONObject(i).getString("couponBatchCode").equals(couponBatchCode)) {
 									if (items.getJSONObject(i).getString("status").equals("10")) {
-										couponCodes.add(items.getJSONObject(i).getString("couponCode"));
+										Coupon coupon = new Coupon();
+										coupon.setUseFlag(false);
+										coupon.setCouponBatchCode(couponBatchCode);
+										coupon.setCouponCode(items.getJSONObject(i).getString("couponCode"));
+										couponCodes.add(coupon);
 										getSuccess = true;
 									}
 								}
@@ -814,6 +817,175 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 			}
 		} catch (Exception e) {
 			resultBean.setReturnMsg("获取拥有的优惠券失败" + e.getMessage());
+		}
+		return resultBean;
+	}
+
+	@Override
+	public ReturnResultBean createOrderUseMyCoupon(SkuBean bean) {
+		ReturnResultBean returnFreightBean = getFreightAmount(bean);
+		if (returnFreightBean.getResultCode() != 0) {
+			returnFreightBean.setResultCode(-1);
+			returnFreightBean.setReturnMsg("获取运费失败:" + returnFreightBean.getReturnMsg());
+			return returnFreightBean;
+		}
+		bean.setFreightMoney((Integer) returnFreightBean.getReturnObj());
+		ReturnResultBean resultBean = new ReturnResultBean();
+		resultBean.setResultCode(-1);
+		resultBean.setReturnMsg("下单失败");
+		List<Header> headerList = Lists.newArrayList();
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT, "*/*"));
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT_ENCODING, "gzip, deflate, br"));
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT_LANGUAGE,
+				"zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2"));
+		headerList.add(new BasicHeader(HttpHeaders.CONNECTION, "keep-alive"));
+		headerList.add(new BasicHeader(HttpHeaders.HOST, "m.teshehui.com"));
+		headerList.add(new BasicHeader("TE", "Trailers"));
+		headerList.add(new BasicHeader(HttpHeaders.USER_AGENT,
+				"Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0"));
+		headerList.add(new BasicHeader("X-Requested-With", "XMLHttpRequest"));
+		CloseableHttpClient httpClient = HttpClients.custom()
+				.setDefaultRequestConfig(RequestConfig.custom().setSocketTimeout(3000).setConnectTimeout(5000)
+						.setConnectionRequestTimeout(3000).setCookieSpec(CookieSpecs.STANDARD).build())
+				.setDefaultHeaders(headerList).setDefaultCookieStore(teshehuiSession.getCookieStore())
+				.setDefaultHeaders(headerList).build();
+		String url = "https://m.teshehui.com/order/createorder";
+		URI uri = null;
+		try {
+			uri = new URIBuilder(url).build();
+		} catch (URISyntaxException e) {
+			resultBean.setResultCode(-1);
+			resultBean.setReturnMsg("下单失败 " + e.getMessage());
+			return resultBean;
+		}
+		Coupon coupon = teshehuiSession.useCoupon();
+		List<NameValuePair> params = Lists.newArrayList();
+		if (coupon != null) {
+			params.add(new BasicNameValuePair("userCouponList[]", coupon.getCouponCode()));
+			params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][userCouponCode]",
+					coupon.getCouponCode()));
+		}
+		params.add(new BasicNameValuePair("buyType", "2"));
+		params.add(new BasicNameValuePair("deliveryType", "2"));
+		params.add(new BasicNameValuePair("payPoint", "0"));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][freeAmount]", "0"));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][freightAmount]", bean.getFreightMoney() + ""));
+		params.add(
+				new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][costPrice]", bean.getMemberPrice()));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][costTB]", "0"));
+		Date now = new Date();
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][createTime]", now.getTime() + ""));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][isPresent]", "0"));
+		if (coupon == null) {
+			params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][payAmount]",
+					bean.getMemberPrice()));
+			params.add(new BasicNameValuePair("orderPayAmount", bean.getMemberPrice()));
+		} else {
+			params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][payAmount]",
+					(Long.getLong(bean.getMemberPrice()) - 500) + ""));
+			params.add(new BasicNameValuePair("orderPayAmount", (Long.getLong(bean.getMemberPrice()) - 500) + ""));
+
+		}
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][payPoint]", "0"));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][productCode]",
+				bean.getProductCode()));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][productName]",
+				bean.getProductName()));
+		params.add(
+				new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][productSkuCode]", bean.getSkuCode()));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][productType]", "1"));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][quantity]", "1"));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][userActivityCode]", "A001303"));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][userCouponCode]", ""));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][storeId]", bean.getStoreId()));
+		params.add(new BasicNameValuePair("tshAmount", "0"));
+		params.add(new BasicNameValuePair("userAddressId", teshehuiSession.getUserBean().getAddressId()));
+		params.add(new BasicNameValuePair("userType", "0"));
+		try {
+			HttpUriRequest httpUriRequest;
+			httpUriRequest = RequestBuilder.post().setEntity(new UrlEncodedFormEntity(params, "UTF-8")).setUri(uri)
+					.build();
+			HttpClientContext httpClientContext = HttpClientContext.create();
+			HttpResponse response = httpClient.execute(httpUriRequest, httpClientContext);
+			if (response.getStatusLine().getStatusCode() == 200) {
+				HttpEntity entity = response.getEntity();
+				if (entity != null) {
+					String content = EntityUtils.toString(entity);
+					JSONObject jsonObject = JSON.parseObject(content);
+					if ((jsonObject.getInteger("status") == 200)) {
+						resultBean.setResultCode(0);
+					} else {
+						resultBean.setReturnMsg(jsonObject.getString("message"));
+						teshehuiSession.useCouponFail(coupon);
+					}
+				}
+			}
+			httpClient.close();
+		} catch (Exception e) {
+			resultBean.setReturnMsg("下单失败 " + e.getMessage());
+		}
+		return resultBean;
+	}
+
+	@Override
+	public ReturnResultBean getPromotioninf(String skuCode) {
+		ReturnResultBean resultBean = new ReturnResultBean();
+		resultBean.setResultCode(-1);
+		resultBean.setReturnMsg("获取促销信息失败");
+		List<Header> headerList = Lists.newArrayList();
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT, "*/*"));
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT_ENCODING, "gzip, deflate, br"));
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT_LANGUAGE,
+				"zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2"));
+		headerList.add(new BasicHeader(HttpHeaders.CONNECTION, "keep-alive"));
+		headerList.add(new BasicHeader(HttpHeaders.HOST, "m.teshehui.com"));
+		headerList.add(new BasicHeader("TE", "Trailers"));
+		headerList.add(new BasicHeader(HttpHeaders.USER_AGENT,
+				"Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0"));
+		headerList.add(new BasicHeader("X-Requested-With", "XMLHttpRequest"));
+		CloseableHttpClient httpClient = null;
+
+		CookieStore cookieStore = teshehuiSession.getCookieStore();
+		httpClient = HttpClients.custom()
+				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+				.setDefaultHeaders(headerList).setDefaultCookieStore(cookieStore).setDefaultHeaders(headerList).build();
+		String url = "https://m.teshehui.com/cgi/getpromotioninf";
+		URI uri = null;
+		try {
+			uri = new URIBuilder(url).build();
+		} catch (URISyntaxException e) {
+			resultBean.setResultCode(-1);
+			resultBean.setReturnMsg("获取促销信息失败" + e.getMessage());
+			return resultBean;
+		}
+		List<NameValuePair> params = Lists.newArrayList();
+		params.add(new BasicNameValuePair("promotionGoodsType", "40"));
+		params.add(new BasicNameValuePair("promotionType", "10"));
+		params.add(new BasicNameValuePair("promotionGoodsTypeFlag", skuCode));
+		try {
+			HttpUriRequest httpUriRequest;
+			httpUriRequest = RequestBuilder.post().setEntity(new UrlEncodedFormEntity(params, "UTF-8")).setUri(uri)
+					.build();
+			HttpClientContext httpClientContext = HttpClientContext.create();
+			HttpResponse response = httpClient.execute(httpUriRequest, httpClientContext);
+			if (response.getStatusLine().getStatusCode() == 200) {
+				HttpEntity entity = response.getEntity();
+				if (entity != null) {
+					String content = EntityUtils.toString(entity);
+					JSONObject jsonObject = JSON.parseObject(content);
+					if (jsonObject.getInteger("status") == 200) {
+						JSONArray array = jsonObject.getJSONArray("couponBatchArray");
+						if (array != null && array.size() > 0) {
+							resultBean.setResultCode(0);
+							resultBean.setReturnObj(array.getJSONObject(0).getString("code"));
+						}
+					} else {
+						resultBean.setReturnMsg("");
+					}
+				}
+			}
+		} catch (Exception e) {
+			resultBean.setReturnMsg("获取促销信息失败" + e.getMessage());
 		}
 		return resultBean;
 	}

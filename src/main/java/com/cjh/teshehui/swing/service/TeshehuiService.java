@@ -21,7 +21,11 @@ public interface TeshehuiService {
 
 	ReturnResultBean checkCode(String verifyImgCode);
 	
-	ReturnResultBean getCoupon();
+	ReturnResultBean getCoupon(String couponBatchCode);
 	
-	ReturnResultBean getMyCoupon();
+	ReturnResultBean getMyCoupon(String couponBatchCode);
+	
+	ReturnResultBean createOrderUseMyCoupon(SkuBean bean);
+
+	ReturnResultBean getPromotioninf(String skuCode);
 }
