@@ -108,8 +108,10 @@ public class OrderTask implements Runnable {
 					}
 				}
 				if (teshehuiSession.getCouponList().size() < 2) {
-					teshehuiService.getCoupon(couponBatchCode);
-					teshehuiService.getCoupon(couponBatchCode);
+					returnBean = teshehuiService.getCoupon(couponBatchCode);
+					if(!(returnBean.getResultCode()!=0&&returnBean.getReturnMsg().contains("您已领过该优惠券啦"))){
+						teshehuiService.getCoupon(couponBatchCode);
+					}
 				}
 				returnBean = teshehuiService.createOrderUseMyCoupon(sku);
 				if (returnBean.getResultCode() == 0) {
