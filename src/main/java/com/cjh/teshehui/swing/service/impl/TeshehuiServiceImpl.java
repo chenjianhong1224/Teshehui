@@ -882,8 +882,8 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 			params.add(new BasicNameValuePair("orderPayAmount", bean.getMemberPrice()));
 		} else {
 			params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][payAmount]",
-					(Long.getLong(bean.getMemberPrice()) - 500) + ""));
-			params.add(new BasicNameValuePair("orderPayAmount", (Long.getLong(bean.getMemberPrice()) - 500) + ""));
+					(Long.valueOf(bean.getMemberPrice()) - 500) + ""));
+			params.add(new BasicNameValuePair("orderPayAmount", (Long.valueOf(bean.getMemberPrice()) - 500) + ""));
 
 		}
 		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][payPoint]", "0"));
@@ -896,7 +896,6 @@ public class TeshehuiServiceImpl implements TeshehuiService {
 		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][productType]", "1"));
 		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][quantity]", "1"));
 		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][userActivityCode]", "A001303"));
-		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][userCouponCode]", ""));
 		params.add(new BasicNameValuePair("scheduleOrderList[0][storeId]", bean.getStoreId()));
 		params.add(new BasicNameValuePair("tshAmount", "0"));
 		params.add(new BasicNameValuePair("userAddressId", teshehuiSession.getUserBean().getAddressId()));
