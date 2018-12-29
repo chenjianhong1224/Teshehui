@@ -56,7 +56,6 @@ import com.cjh.teshehui.swing.bean.TaskResultStatistic;
 import com.cjh.teshehui.swing.bean.UserBean;
 import com.cjh.teshehui.swing.service.TeshehuiService;
 import com.cjh.teshehui.swing.session.TeshehuiSession;
-import com.cjh.teshehui.test.YDMTest.YDM;
 import com.google.common.collect.Lists;
 import com.sun.jna.Library;
 import com.sun.jna.Native;

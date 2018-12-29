@@ -9,8 +9,8 @@ public class YDMTest {
 	// yundamaAPI 32位, yundamaAPI-x64 64位
 	public static String DLLPATH = "D:\\云打码\\Java调用示例\\yundamaAPI-x64.dll";
 
-	public interface YDM extends Library {
-		YDM INSTANCE = (YDM) Native.loadLibrary(DLLPATH, YDM.class);
+	public interface YDM1 extends Library {
+		YDM1 INSTANCE = (YDM1) Native.loadLibrary(DLLPATH, YDM1.class);
 
 		public void YDM_SetBaseAPI(String lpBaseAPI);
 
@@ -77,14 +77,14 @@ public class YDMTest {
 
 		// 只需要在初始的时候登陆一次
 		int uid = 0;
-		YDM.INSTANCE.YDM_SetAppInfo(appid, appkey); // 设置软件ID和密钥
-		uid = YDM.INSTANCE.YDM_Login(username, password); // 登陆到云打码
+		YDM1.INSTANCE.YDM_SetAppInfo(appid, appkey); // 设置软件ID和密钥
+		uid = YDM1.INSTANCE.YDM_Login(username, password); // 登陆到云打码
 
 		if (uid > 0) {
 			System.out.println("登陆成功,正在提交识别...");
 
 			byte[] byteResult = new byte[30];
-			int cid = YDM.INSTANCE.YDM_DecodeByPath(imagepath, codetype, byteResult);
+			int cid = YDM1.INSTANCE.YDM_DecodeByPath(imagepath, codetype, byteResult);
 			String strResult = new String(byteResult, "UTF-8").trim();
 
 			// 返回其他错误代码请查询 http://www.yundama.com/apidoc/YDM_ErrorCode.html
