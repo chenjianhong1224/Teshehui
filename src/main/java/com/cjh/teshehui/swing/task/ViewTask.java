@@ -43,7 +43,7 @@ public class ViewTask implements Runnable {
 					table.validate();
 					try {
 						if (msgBean.getMsg().contains("成功")) {
-							AudioService.getInstance().play("1.wav");
+							NoticeTask.msgQueue.add(1);
 						}
 					} catch (Exception e1) {
 						e1.printStackTrace();

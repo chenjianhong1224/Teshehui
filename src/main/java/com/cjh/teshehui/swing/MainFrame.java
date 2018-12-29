@@ -31,6 +31,7 @@ import com.cjh.teshehui.swing.service.TeshehuiService;
 import com.cjh.teshehui.swing.service.impl.TeshehuiServiceImpl;
 import com.cjh.teshehui.swing.session.TeshehuiSession;
 import com.cjh.teshehui.swing.session.TeshehuiSessionManager;
+import com.cjh.teshehui.swing.task.NoticeTask;
 import com.cjh.teshehui.swing.task.OrderTask;
 import com.cjh.teshehui.swing.task.ViewTask;
 import com.cjh.teshehui.swing.utils.SpringContextUtils;
@@ -101,6 +102,7 @@ public class MainFrame extends JFrame {
 	private List<SkuBean> taskBeans;
 	private List<Thread> taskThreadList = Lists.newArrayList();
 	private Thread viewThread = null;
+	private Thread noticeThread = null;
 	private boolean isRunning = false;
 	private JButton excuteButton;
 
@@ -170,6 +172,14 @@ public class MainFrame extends JFrame {
 			if (viewThread != null) {
 				try {
 					viewThread.join();
+				} catch (InterruptedException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+			}
+			if (noticeThread != null) {
+				try {
+					noticeThread.join();
 				} catch (InterruptedException e1) {
 					// TODO Auto-generated catch block
 					e1.printStackTrace();
@@ -526,6 +536,8 @@ public class MainFrame extends JFrame {
 					ViewTask viewTask = new ViewTask(table, dtm);
 					viewThread = new Thread(viewTask, "下单结果显示任务");
 					viewThread.start();
+					noticeThread = new Thread(new NoticeTask(), "通知任务");
+					noticeThread.start();
 					runFlag = true;
 				}
 				doExcute(runFlag);
