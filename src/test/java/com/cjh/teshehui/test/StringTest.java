@@ -1,5 +1,7 @@
 package com.cjh.teshehui.test;
 
+import java.math.BigDecimal;
+
 import org.junit.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
@@ -17,5 +19,10 @@ public class StringTest {
 		String addressId = content.substring(content.indexOf(beginString) + beginString.length());
 		addressId = addressId.substring(0, addressId.indexOf(">"));
 		System.out.println(addressId);
+	}
+	
+	@Test
+	public void hh(){
+
 	}
 }

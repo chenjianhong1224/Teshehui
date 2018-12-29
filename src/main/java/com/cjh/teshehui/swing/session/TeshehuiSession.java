@@ -45,27 +45,22 @@ import com.google.common.collect.Maps;
 @Scope("singleton")
 public class TeshehuiSession {
 
-	String[] cookieName = { "cookie1", "cookie2", "cookie3", "cookie4", "cookie5", "cookie6", "cookie7", "cookie8",
-			"cookie9", "cookie10" };
+	private CookieStore cookieStore;
 
-	public int sessionNum = 0;
+	private List<String> hadGotcouponBatchList = Lists.newArrayList();
 
-	public int nowSessionIndex = 0;
-
-	public int count = 0;
-
-	public void cleanSession() {
-		userBean = null;
-		cookieStore = null;
-		for (int i = 0; i < sessionNum; i++) {
-			File file = new File(cookieName[i]);
-			file.delete();
-		}
-		sessionNum = 0;
-		nowSessionIndex = 0;
+	public void addHadGotcouponBatch(String batchCode) {
+		hadGotcouponBatchList.add(batchCode);
 	}
 
-	private CookieStore cookieStore;
+	public boolean hadGotVerify(String batchCode) {
+		for (String code : hadGotcouponBatchList) {
+			if (code.equals(batchCode)) {
+				return true;
+			}
+		}
+		return false;
+	}
 
 	private List<Coupon> couponList = Lists.newArrayList();
 
@@ -112,11 +107,10 @@ public class TeshehuiSession {
 	}
 
 	public CookieStore getCookieStore() {
-		return getLocalCookieStore();
+		return cookieStore;
 	}
 
 	public void setCookieStore(CookieStore cookieStore) throws IOException {
-		saveCookieStore(cookieStore);
 		this.cookieStore = cookieStore;
 	}
 
@@ -128,109 +122,19 @@ public class TeshehuiSession {
 		this.auth = auth;
 	}
 
-	private CookieStore getLocalCookieStore() {
-		cookieStore = null;
-		try {
-			if (sessionNum != 0) {
-				nowSessionIndex = count % sessionNum;
-			} else {
-				nowSessionIndex = 0;
-			}
-			cookieStore = readCookieStore(cookieName[nowSessionIndex]);
-			count++;
-		} catch (Exception e) {
-			e.printStackTrace();
-			cookieStore = new BasicCookieStore();
-		}
-		if (cookieStore == null) {
-			cookieStore = new BasicCookieStore();
-		}
-		return cookieStore;
-	}
-
-	private void saveCookieStore(CookieStore cookieStore) throws IOException {
-		FileOutputStream fs = new FileOutputStream(cookieName[sessionNum]);
-		ObjectOutputStream os = new ObjectOutputStream(fs);
-		os.writeObject(cookieStore);
-		os.close();
-		sessionNum++;
-	}
-
-	// 读取Cookie的序列化文件，读取后可以直接使用
-	private CookieStore readCookieStore(String savePath) throws IOException, ClassNotFoundException {
-		FileInputStream fs = new FileInputStream(savePath);
-		ObjectInputStream ois = new ObjectInputStream(fs);
-		CookieStore cookieStore = (CookieStore) ois.readObject();
-		ois.close();
-		return cookieStore;
-	}
-
-	public boolean checkSession() throws ClassNotFoundException, IOException {
-		for (int i = 0; i < cookieName.length && i < 1; i++) {
-			List<Header> headerList = Lists.newArrayList();
-			headerList.add(new BasicHeader(HttpHeaders.ACCEPT, "*/*"));
-			headerList.add(new BasicHeader(HttpHeaders.ACCEPT_ENCODING, "gzip, deflate, br"));
-			headerList.add(new BasicHeader(HttpHeaders.ACCEPT_LANGUAGE,
-					"zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2"));
-			headerList.add(new BasicHeader(HttpHeaders.CONNECTION, "keep-alive"));
-			headerList.add(new BasicHeader(HttpHeaders.HOST, "m.teshehui.com"));
-			headerList.add(new BasicHeader(HttpHeaders.REFERER, "https://m.teshehui.com/user"));
-			headerList.add(new BasicHeader("TE", "Trailers"));
-			headerList.add(new BasicHeader(HttpHeaders.USER_AGENT,
-					"Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0"));
-			headerList.add(new BasicHeader("X-Requested-With", "XMLHttpRequest"));
-			CloseableHttpClient httpClient = null;
-			try {
-				httpClient = HttpClients.custom()
-						.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
-						.setDefaultHeaders(headerList).setDefaultCookieStore(readCookieStore(cookieName[i]))
-						.setDefaultHeaders(headerList).build();
-			} catch (Exception e) {
-				if (sessionNum < 0) {
-					return false;
-				} else {
-					break;
-				}
-			}
-			String url = "https://m.teshehui.com/user/get_user_info";
-			URI uri = null;
-			try {
-				uri = new URIBuilder(url).build();
-			} catch (URISyntaxException e) {
-				return false;
-			}
-			HttpUriRequest httpUriRequest = RequestBuilder.get().setUri(uri).build();
-			HttpClientContext httpClientContext = HttpClientContext.create();
-			try {
-				HttpResponse response = httpClient.execute(httpUriRequest, httpClientContext);
-				if (response.getStatusLine().getStatusCode() == 200) {
-					HttpEntity entity = response.getEntity();
-					if (entity != null) {
-						String content = EntityUtils.toString(entity);
-						JSONObject jsonObject = JSON.parseObject(content);
-						if (jsonObject.getInteger("status") != 200) {
-							if (sessionNum < 0) {
-								return false;
-							} else {
-								break;
-							}
-						}
-					}
-					sessionNum++;
-				}
-				httpClient.close();
-			} catch (Exception e) {
-				return false;
-			}
-		}
-		return true;
-	}
-
 	public List<Coupon> getCouponList() {
 		return couponList;
 	}
 
 	public void setCouponList(List<Coupon> couponList) {
 		this.couponList = couponList;
+	}
+
+	public List<String> getHadGotcouponBatchList() {
+		return hadGotcouponBatchList;
+	}
+
+	public void setHadGotcouponBatchList(List<String> hadGotcouponBatchList) {
+		this.hadGotcouponBatchList = hadGotcouponBatchList;
 	}
 }

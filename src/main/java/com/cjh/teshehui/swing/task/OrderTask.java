@@ -8,8 +8,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import com.cjh.teshehui.swing.bean.Coupon;
 import com.cjh.teshehui.swing.bean.ReturnResultBean;
 import com.cjh.teshehui.swing.bean.SkuBean;
+import com.cjh.teshehui.swing.bean.TaskResultStatistic;
 import com.cjh.teshehui.swing.bean.ViewMsgBean;
 import com.cjh.teshehui.swing.service.TeshehuiService;
+import com.cjh.teshehui.swing.service.impl.TeshehuiServiceImpl;
 import com.cjh.teshehui.swing.session.TeshehuiSession;
 import com.cjh.teshehui.swing.utils.SpringContextUtils;
 
@@ -17,13 +19,16 @@ public class OrderTask implements Runnable {
 
 	public static long sleepTime = 1000;
 
-	public OrderTask(Date beginTime, Date endTime, SkuBean skuBean, String num, int rowIndex) {
+	public OrderTask(Date beginTime, Date endTime, SkuBean skuBean, String num, int rowIndex, TeshehuiSession session) {
 		this.beginTime = beginTime;
 		this.endTime = endTime;
 		this.sku = skuBean;
 		this.num = num;
 		this.rowIndex = rowIndex;
+		teshehuiService = new TeshehuiServiceImpl(session);
 	}
+
+	TeshehuiServiceImpl teshehuiService;
 
 	int rowIndex;
 
@@ -50,8 +55,24 @@ public class OrderTask implements Runnable {
 		ViewMsgBean msg = new ViewMsgBean();
 		msg.setRow(rowIndex);
 		int successNum = 0;
+		teshehuiService.getAddress();
 		try {
 			while (!taskFinishFlag.get()) {
+				ReturnResultBean returnBean = new ReturnResultBean();
+				returnBean = teshehuiService.getPromotioninf(sku.getProductCode());
+				boolean canUseCoupon = true;
+				if (returnBean.getResultCode() == 8888) {
+					canUseCoupon = false;
+				}
+				String couponBatchCode = (String) returnBean.getReturnObj();
+				TeshehuiSession teshehuiSession = teshehuiService.getTeshehuiSession();
+				returnBean = teshehuiService.getMyCoupon(couponBatchCode);
+				if (returnBean.getResultCode() == 0) {
+					List<Coupon> couponList = (List<Coupon>) returnBean.getReturnObj();
+					for (Coupon coupon : couponList) {
+						teshehuiSession.addCoupon(coupon);
+					}
+				}
 				Date now = new Date();
 				msg.setTime(now);
 				if (now.getTime() < beginTime.getTime()) {
@@ -80,10 +101,6 @@ public class OrderTask implements Runnable {
 					ViewTask.msgQueue.put(msg);
 					return;
 				}
-				TeshehuiService teshehuiService = (TeshehuiService) SpringContextUtils.getContext()
-						.getBean("teshehuiServiceImpl");
-				TeshehuiSession teshehuiSession = (TeshehuiSession) SpringContextUtils.getContext()
-						.getBean("teshehuiSession");
 				// ReturnResultBean returnBean =
 				// teshehuiService.getProductStockInfo(sku.getProductCode());
 				// if (returnBean.getResultCode() == 0) {
@@ -92,31 +109,23 @@ public class OrderTask implements Runnable {
 				// for (SkuBean queryBean : skuList) {
 				// if (queryBean.getSkuCode().equals(sku.getSkuCode())) {
 				// if (queryBean.getSkuStock() > 0) {
-				ReturnResultBean returnBean = new ReturnResultBean();
-				returnBean = teshehuiService.getPromotioninf(sku.getProductCode());
-				String couponBatchCode = "";
-				if (returnBean.getResultCode() == 0) {
-					couponBatchCode = (String) returnBean.getReturnObj();
-				}
-				if (teshehuiSession.getCouponList().size() < 2) {
-					returnBean = teshehuiService.getMyCoupon(couponBatchCode);
-					if (returnBean.getResultCode() == 0) {
-						List<Coupon> couponList = (List<Coupon>) returnBean.getReturnObj();
-						for (Coupon coupon : couponList) {
-							teshehuiSession.addCoupon(coupon);
+				if (!canUseCoupon) {
+					returnBean = teshehuiService.createOrder(sku);
+				} else {
+					boolean hadGotFlag = teshehuiSession.hadGotVerify(couponBatchCode);
+					if (!hadGotFlag) {
+						returnBean = teshehuiService.getCoupon(couponBatchCode);
+						if (returnBean.getResultCode() != 0 && returnBean.getReturnMsg().contains("您已领过该优惠券啦")) {
+							teshehuiSession.addHadGotcouponBatch(couponBatchCode);
 						}
 					}
+					returnBean = teshehuiService.createOrderUseMyCoupon(sku);
 				}
-				if (teshehuiSession.getCouponList().size() < 2) {
-					returnBean = teshehuiService.getCoupon(couponBatchCode);
-					if(!(returnBean.getResultCode()!=0&&returnBean.getReturnMsg().contains("您已领过该优惠券啦"))){
-						teshehuiService.getCoupon(couponBatchCode);
-					}
-				}
-				returnBean = teshehuiService.createOrderUseMyCoupon(sku);
 				if (returnBean.getResultCode() == 0) {
 					successNum++;
 					msg.setMsg("成功啦, 成功" + successNum + "个");
+					TaskResultStatistic t = TaskResultStatistic.getInstance();
+					t.addResult(teshehuiSession.getUserBean().getNickName(), rowIndex);
 					ViewTask.msgQueue.put(msg);
 					if (successNum == Integer.valueOf(num)) {
 						return;

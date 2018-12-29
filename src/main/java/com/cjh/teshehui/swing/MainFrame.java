@@ -26,8 +26,11 @@ import org.springframework.util.StringUtils;
 import com.alibaba.fastjson.JSON;
 import com.cjh.teshehui.swing.bean.ReturnResultBean;
 import com.cjh.teshehui.swing.bean.SkuBean;
+import com.cjh.teshehui.swing.bean.TaskResultStatistic;
 import com.cjh.teshehui.swing.service.TeshehuiService;
+import com.cjh.teshehui.swing.service.impl.TeshehuiServiceImpl;
 import com.cjh.teshehui.swing.session.TeshehuiSession;
+import com.cjh.teshehui.swing.session.TeshehuiSessionManager;
 import com.cjh.teshehui.swing.task.OrderTask;
 import com.cjh.teshehui.swing.task.ViewTask;
 import com.cjh.teshehui.swing.utils.SpringContextUtils;
@@ -44,6 +47,9 @@ import javax.swing.JButton;
 import javax.swing.JTextPane;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -56,6 +62,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import javax.swing.UIManager;
@@ -83,7 +90,6 @@ public class MainFrame extends JFrame {
 	private JTextPane addressLabel;
 	private JLabel phoneNoLabel;
 	private JLabel verifyLabel;
-	private TeshehuiService teshehuiService;
 	private JButton getVerfiyButton;
 	private JButton sessionLoginButton;
 	private JButton loginButton;
@@ -105,6 +111,9 @@ public class MainFrame extends JFrame {
 	private JCheckBox chckbxNewCheckBox_1;
 	private JFormattedTextField lunxuTime;
 	private JTextField smsCodeField;
+	private JTextField ydmUserNmae;
+	private JTextField ydmPasswd;
+	private JTextPane ydmMsg;
 
 	/**
 	 * Launch the application.
@@ -148,6 +157,8 @@ public class MainFrame extends JFrame {
 			excuteButton.setText("停止");
 		} else {
 			excuteButton.setText("开始执行");
+			TaskResultStatistic t = TaskResultStatistic.getInstance();
+			t.clear();
 			OrderTask.getTaskFinishFlag().set(true);
 			for (Thread taskThread : taskThreadList) {
 				try {
@@ -217,38 +228,50 @@ public class MainFrame extends JFrame {
 		loginPane.add(phoneNoField);
 		phoneNoField.setColumns(10);
 
-		sessionLoginButton = new JButton("用原来会话登录");
+		sessionLoginButton = new JButton("用密码登录");
 		sessionLoginButton.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseClicked(MouseEvent e) {
-				TeshehuiSession teshehuiSession = (TeshehuiSession) SpringContextUtils.getContext()
-						.getBean("teshehuiSession");
-				boolean sessionAble = false;
 				try {
-					sessionAble = teshehuiSession.checkSession();
+					TeshehuiServiceImpl teshehuiService = new TeshehuiServiceImpl();
+					File file = new File("config.txt");
+					BufferedReader reader = null;
+					reader = new BufferedReader(new FileReader(file));
+					String tempString = null;
+					int line = 1;
+					// 一次读入一行，直到读入null为文件结束
+					while ((tempString = reader.readLine()) != null) {
+						String userName = tempString.split("=")[0];
+						String passwd = tempString.split("=")[1];
+						TeshehuiSessionManager teshehuiSessionManager = (TeshehuiSessionManager) SpringContextUtils
+								.getContext().getBean("teshehuiSessionManager");
+						ReturnResultBean returnBean = teshehuiService.loginByPasswd(userName, passwd);
+						if (returnBean.getResultCode() != 0) {
+							JOptionPane.showMessageDialog(loginPane, "第" + line + "行登录失败");
+							reader.close();
+							teshehuiSessionManager.clear();
+							return;
+						}
+						teshehuiSessionManager.addSession(userName, (TeshehuiSession) returnBean.getReturnObj());
+						line++;
+						if (line == 3) {
+							reader.close();
+							break;
+						}
+					}
+					reader.close();
 				} catch (Exception e1) {
 					e1.printStackTrace();
-				}
-				if (!sessionAble) {
-					JOptionPane.showMessageDialog(loginPane, "会话可能已经失效，请用短信验证码登录软件");
+					JOptionPane.showMessageDialog(loginPane, "登录失败");
 					return;
 				}
-				teshehuiService = (TeshehuiService) SpringContextUtils.getContext().getBean("teshehuiServiceImpl");
-				if (teshehuiService.getUserInfo().getResultCode() != 0) {
-					JOptionPane.showMessageDialog(loginPane, "会话可能已经失效，请用短信验证码登录软件");
-					return;
+				TeshehuiSessionManager manager = (TeshehuiSessionManager) SpringContextUtils.getContext()
+						.getBean("teshehuiSessionManager");
+				String text = "共登录会话" + manager.getAllSession().size() + "个，分别为：";
+				for (String key : manager.getAllSession().keySet()) {
+					text += key + " ";
 				}
-				ReturnResultBean returnBean = teshehuiService.getAddress();
-				if (returnBean.getResultCode() != 0) {
-					JOptionPane.showMessageDialog(loginPane, "会话可能已经失效，请用短信验证码登录软件");
-					return;
-				}
-
-				addressLabel.setText("共登录会话" + teshehuiSession.sessionNum + "个，当前会话："
-						+ (teshehuiSession.getUserBean().getNickName() == null ? ""
-								: teshehuiSession.getUserBean().getNickName())
-						+ " 电话:" + teshehuiSession.getUserBean().getMobilePhone() + ", 地址:"
-						+ teshehuiSession.getUserBean().getAddressDetail());
+				addressLabel.setText(text);
 				doLoginOrOut(true);
 				urlField.requestFocus();
 			}
@@ -271,11 +294,11 @@ public class MainFrame extends JFrame {
 		loginButton.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseClicked(MouseEvent e) {
-				TeshehuiSession teshehuiSession = (TeshehuiSession) SpringContextUtils.getContext()
-						.getBean("teshehuiSession");
+				TeshehuiSessionManager teshehuiSessionManager = (TeshehuiSessionManager) SpringContextUtils.getContext()
+						.getBean("teshehuiSessionManager");
 				if (loginButton.getText().equals("登出")) {
 					doLoginOrOut(false);
-					teshehuiSession.cleanSession();
+					teshehuiSessionManager.clear();
 					return;
 				}
 				if (StringUtils.isEmpty(phoneNoField.getText())) {
@@ -286,35 +309,27 @@ public class MainFrame extends JFrame {
 					JOptionPane.showMessageDialog(loginPane, "短信验证码不能为空");
 					return;
 				}
-				teshehuiService = (TeshehuiService) SpringContextUtils.getContext().getBean("teshehuiServiceImpl");
+				TeshehuiServiceImpl teshehuiService = new TeshehuiServiceImpl();
 				ReturnResultBean returnBean = teshehuiService.login(phoneNoField.getText(), smsCodeField.getText());
 				if (returnBean.getResultCode() != 0) {
 					JOptionPane.showMessageDialog(loginPane, returnBean.getReturnMsg());
 					return;
 				}
-				TeshehuiSession sessionService = (TeshehuiSession) SpringContextUtils.getContext()
-						.getBean("teshehuiSession");
-				int n = 1;
-				if (sessionService.sessionNum < 1) {
-					n = JOptionPane.showConfirmDialog(null, "继续登录？", "", JOptionPane.YES_NO_OPTION);
+				TeshehuiSession session = (TeshehuiSession) returnBean.getReturnObj();
+				teshehuiSessionManager.addSession(phoneNoField.getText(), session);
+				returnBean = teshehuiService.getAddress();
+				if (returnBean.getResultCode() != 0) {
+					JOptionPane.showMessageDialog(loginPane, returnBean.getReturnMsg() + " 请设置好地址后重新登录软件");
+					return;
 				}
-				if (n != 0) {
-					returnBean = teshehuiService.getAddress();
-					if (returnBean.getResultCode() != 0) {
-						JOptionPane.showMessageDialog(loginPane, returnBean.getReturnMsg() + " 请设置好地址后重新登录软件");
-						return;
-					}
-					addressLabel.setText("共登录会话" + sessionService.sessionNum + "个，当前会话："
-							+ (teshehuiSession.getUserBean().getNickName() == null ? ""
-									: teshehuiSession.getUserBean().getNickName())
-							+ " 电话:" + teshehuiSession.getUserBean().getMobilePhone() + ", 地址:"
-							+ teshehuiSession.getUserBean().getAddressDetail());
-					doLoginOrOut(true);
-					urlField.requestFocus();
-				} else {
-					phoneNoField.setEditable(false);
-					getVerfiyButton.doClick();
-				}
+				TeshehuiSession teshehuiSession = teshehuiSessionManager.getAllSession().get(phoneNoField.getText());
+				addressLabel.setText("共登录会话" + teshehuiSessionManager.getAllSession().size() + "个，当前会话："
+						+ (teshehuiSession.getUserBean().getNickName() == null ? ""
+								: teshehuiSession.getUserBean().getNickName())
+						+ " 电话:" + teshehuiSession.getUserBean().getMobilePhone() + ", 地址:"
+						+ teshehuiSession.getUserBean().getAddressDetail());
+				doLoginOrOut(true);
+				urlField.requestFocus();
 			}
 		});
 		loginPane.add(loginButton);
@@ -339,7 +354,7 @@ public class MainFrame extends JFrame {
 				if (StringUtils.isEmpty(vImgJDialog.getVerifyImgCode())) {
 					return;
 				}
-				teshehuiService = (TeshehuiService) SpringContextUtils.getContext().getBean("teshehuiServiceImpl");
+				TeshehuiServiceImpl teshehuiService = new TeshehuiServiceImpl();
 				ReturnResultBean returnBean = teshehuiService.getLoginSmsCode(phoneNoField.getText(),
 						vImgJDialog.getVerifyImgCode());
 				if (returnBean.getResultCode() != 0) {
@@ -368,38 +383,50 @@ public class MainFrame extends JFrame {
 		urlField.addFocusListener(new FocusAdapter() {
 			@Override
 			public void focusLost(FocusEvent e) {
-				teshehuiService = (TeshehuiService) SpringContextUtils.getContext().getBean("teshehuiServiceImpl");
-				ReturnResultBean returnBean = teshehuiService.getProductStockInfo(urlField.getText());
-				if (returnBean.getResultCode() == 0) {
-					skuComboBox.removeAllItems();
-					List<SkuBean> skuList = (List<SkuBean>) returnBean.getReturnObj();
-					for (SkuBean bean : skuList) {
-						skuComboBoxMap.put(bean.getAttrValue() + " " + bean.getProductName(), bean);
-						productNameLabel.setText(bean.getProductName());
-						skuComboBox.addItem(bean.getAttrValue());
-					}
-				} else if (returnBean.getResultCode() == 7777) {
-					returnBean = teshehuiService.getCheckCode();
+				TeshehuiSessionManager teshehuiSessionManager = (TeshehuiSessionManager) SpringContextUtils.getContext()
+						.getBean("teshehuiSessionManager");
+				Map<String, TeshehuiSession> sessionMap = teshehuiSessionManager.getAllSession();
+				Set<String> userNameSet = sessionMap.keySet();
+				String userName = "";
+				for (String str : userNameSet) {
+					userName = str;
+					break;
+				}
+				if (!userName.equals("")) {
+					TeshehuiServiceImpl teshehuiService = new TeshehuiServiceImpl(sessionMap.get(userName));
+					ReturnResultBean returnBean = teshehuiService.getProductStockInfo(urlField.getText());
 					if (returnBean.getResultCode() == 0) {
-						vImgJDialog2 = new VerifyImgCodeJDialog2(MainFrame.this, (byte[]) returnBean.getReturnObj());
-						vImgJDialog2.setVisible(true);
-						if (StringUtils.isEmpty(vImgJDialog2.getVerifyImgCode())) {
-							return;
+						skuComboBox.removeAllItems();
+						List<SkuBean> skuList = (List<SkuBean>) returnBean.getReturnObj();
+						for (SkuBean bean : skuList) {
+							skuComboBoxMap.put(bean.getAttrValue() + " " + bean.getProductName(), bean);
+							productNameLabel.setText(bean.getProductName());
+							skuComboBox.addItem(bean.getAttrValue());
 						}
-						teshehuiService = (TeshehuiService) SpringContextUtils.getContext()
-								.getBean("teshehuiServiceImpl");
-						returnBean = teshehuiService.checkCode(vImgJDialog2.getVerifyImgCode());
-						if (returnBean.getResultCode() != 0) {
-							JOptionPane.showMessageDialog(loginPane, returnBean.getReturnMsg());
+					} else if (returnBean.getResultCode() == 7777) {
+						returnBean = teshehuiService.getCheckCode();
+						if (returnBean.getResultCode() == 0) {
+							vImgJDialog2 = new VerifyImgCodeJDialog2(MainFrame.this,
+									(byte[]) returnBean.getReturnObj());
+							vImgJDialog2.setVisible(true);
+							if (StringUtils.isEmpty(vImgJDialog2.getVerifyImgCode())) {
+								return;
+							}
+							returnBean = teshehuiService.checkCode(vImgJDialog2.getVerifyImgCode(), "1");
+							if (returnBean.getResultCode() != 0) {
+								JOptionPane.showMessageDialog(loginPane, returnBean.getReturnMsg());
+							}
+							urlField.requestFocus();
+						} else {
+							JOptionPane.showMessageDialog(panel_2, returnBean.getReturnMsg());
+							urlField.requestFocus();
 						}
-						urlField.requestFocus();
 					} else {
-						JOptionPane.showMessageDialog(panel_2, returnBean.getReturnMsg());
+						JOptionPane.showMessageDialog(panel_2, "请确认url是否正确");
 						urlField.requestFocus();
 					}
 				} else {
-					JOptionPane.showMessageDialog(panel_2, "请确认url是否正确");
-					urlField.requestFocus();
+					JOptionPane.showMessageDialog(panel_2, "请登录");
 				}
 			}
 		});
@@ -485,10 +512,16 @@ public class MainFrame extends JFrame {
 					int i = 0;
 					String num = formattedTextField_4.getText();
 					for (SkuBean sku : taskBeans) {
-						OrderTask task = new OrderTask(beginTime, endTime, sku, num, i++);
-						Thread taskThread = new Thread(task, "用户工作任务-" + i);
-						taskThreadList.add(taskThread);
-						taskThread.start();
+						TeshehuiSessionManager teshehuiSessionManager = (TeshehuiSessionManager) SpringContextUtils
+								.getContext().getBean("teshehuiSessionManager");
+						Map<String, TeshehuiSession> sessionMap = teshehuiSessionManager.getAllSession();
+						for (String userName : sessionMap.keySet()) {
+							OrderTask task = new OrderTask(beginTime, endTime, sku, num, i, sessionMap.get(userName));
+							Thread taskThread = new Thread(task, "用户工作任务-" + i);
+							taskThreadList.add(taskThread);
+							taskThread.start();
+						}
+						i++;
 					}
 					ViewTask viewTask = new ViewTask(table, dtm);
 					viewThread = new Thread(viewTask, "下单结果显示任务");
@@ -544,5 +577,41 @@ public class MainFrame extends JFrame {
 		table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 		panel_3.add(table.getTableHeader(), BorderLayout.NORTH);
 		panel_3.add(table, BorderLayout.CENTER);
+
+		ydmUserNmae = new JTextField();
+		ydmUserNmae.setBounds(21, 469, 106, 21);
+		contentPane.add(ydmUserNmae);
+		ydmUserNmae.setColumns(10);
+
+		ydmPasswd = new JTextField();
+		ydmPasswd.setBounds(21, 515, 106, 21);
+		contentPane.add(ydmPasswd);
+		ydmPasswd.setColumns(10);
+
+		JButton btnNewButton = new JButton("登录云打码");
+		btnNewButton.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				TeshehuiServiceImpl tshService = new TeshehuiServiceImpl();
+				ReturnResultBean bean = tshService.loginYDM(ydmUserNmae.getText(), ydmPasswd.getText());
+				if (bean.getResultCode() == 0) {
+					ydmMsg.setVisible(true);
+					ydmMsg.setText("云打码登录成功，用户为" + ydmUserNmae.getText());
+					ydmUserNmae.setVisible(false);
+					ydmUserNmae.setEditable(false);
+					ydmPasswd.setVisible(false);
+					ydmPasswd.setEditable(false);
+				} else {
+					JOptionPane.showMessageDialog(panel_2, bean.getReturnMsg());
+				}
+			}
+		});
+		btnNewButton.setBounds(146, 468, 113, 23);
+		contentPane.add(btnNewButton);
+
+		ydmMsg = new JTextPane();
+		ydmMsg.setBounds(21, 469, 106, 67);
+		contentPane.add(ydmMsg);
+		ydmMsg.setVisible(false);
 	}
 }

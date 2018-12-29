@@ -9,6 +9,8 @@ public interface TeshehuiService {
 	
 	ReturnResultBean login(String phoneNo, String smsCode);
 	
+	ReturnResultBean loginByPasswd(String phoneNo, String passwd);
+	
 	ReturnResultBean getAddress();
 	
 	ReturnResultBean getUserInfo();
@@ -19,7 +21,7 @@ public interface TeshehuiService {
 	
 	ReturnResultBean getCheckCode();
 
-	ReturnResultBean checkCode(String verifyImgCode);
+	ReturnResultBean checkCode(String verifyImgCode, String sourceCode);
 	
 	ReturnResultBean getCoupon(String couponBatchCode);
 	
@@ -28,4 +30,6 @@ public interface TeshehuiService {
 	ReturnResultBean createOrderUseMyCoupon(SkuBean bean);
 
 	ReturnResultBean getPromotioninf(String skuCode);
+	
+	ReturnResultBean checkYanZ();
 }
