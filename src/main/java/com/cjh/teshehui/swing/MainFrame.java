@@ -243,7 +243,6 @@ public class MainFrame extends JFrame {
 			@Override
 			public void mouseClicked(MouseEvent e) {
 				try {
-					TeshehuiServiceImpl teshehuiService = new TeshehuiServiceImpl();
 					File file = new File("config.txt");
 					BufferedReader reader = null;
 					reader = new BufferedReader(new FileReader(file));
@@ -253,6 +252,7 @@ public class MainFrame extends JFrame {
 					while ((tempString = reader.readLine()) != null) {
 						String userName = tempString.split("=")[0];
 						String passwd = tempString.split("=")[1];
+						TeshehuiServiceImpl teshehuiService = new TeshehuiServiceImpl();
 						TeshehuiSessionManager teshehuiSessionManager = (TeshehuiSessionManager) SpringContextUtils
 								.getContext().getBean("teshehuiSessionManager");
 						ReturnResultBean returnBean = teshehuiService.loginByPasswd(userName, passwd);

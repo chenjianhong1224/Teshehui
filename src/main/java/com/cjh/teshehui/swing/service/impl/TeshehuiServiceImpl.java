@@ -532,7 +532,7 @@ public class TeshehuiServiceImpl {
 			returnFreightBean.setReturnMsg("获取运费失败:" + returnFreightBean.getReturnMsg());
 			return returnFreightBean;
 		}
-		//bean.setFreightMoney((Integer) returnFreightBean.getReturnObj());
+		// bean.setFreightMoney((Integer) returnFreightBean.getReturnObj());
 		bean.setFreightMoney(0);
 		ReturnResultBean resultBean = new ReturnResultBean();
 		resultBean.setResultCode(-1);
@@ -892,6 +892,105 @@ public class TeshehuiServiceImpl {
 		return resultBean;
 	}
 
+	private ReturnResultBean createOrderUseCoupon(SkuBean bean, Coupon coupon) {
+		ReturnResultBean resultBean = new ReturnResultBean();
+		resultBean.setResultCode(-1);
+		resultBean.setReturnMsg("下单失败");
+		List<Header> headerList = Lists.newArrayList();
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT, "*/*"));
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT_ENCODING, "gzip, deflate, br"));
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT_LANGUAGE,
+				"zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2"));
+		headerList.add(new BasicHeader(HttpHeaders.CONNECTION, "keep-alive"));
+		headerList.add(new BasicHeader(HttpHeaders.HOST, "m.teshehui.com"));
+		headerList.add(new BasicHeader("TE", "Trailers"));
+		headerList.add(new BasicHeader(HttpHeaders.USER_AGENT,
+				"Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0"));
+		headerList.add(new BasicHeader("X-Requested-With", "XMLHttpRequest"));
+		CloseableHttpClient httpClient = HttpClients.custom()
+				.setDefaultRequestConfig(RequestConfig.custom().setSocketTimeout(3000).setConnectTimeout(5000)
+						.setConnectionRequestTimeout(3000).setCookieSpec(CookieSpecs.STANDARD).build())
+				.setDefaultHeaders(headerList).setDefaultCookieStore(teshehuiSession.getCookieStore())
+				.setDefaultHeaders(headerList).build();
+		String url = "https://m.teshehui.com/order/createorder";
+		URI uri = null;
+		try {
+			uri = new URIBuilder(url).build();
+		} catch (URISyntaxException e) {
+			resultBean.setResultCode(-1);
+			resultBean.setReturnMsg("下单失败 " + e.getMessage());
+			return resultBean;
+		}
+		List<NameValuePair> params = Lists.newArrayList();
+		if (coupon != null) {
+			params.add(new BasicNameValuePair("userCouponList[]", coupon.getCouponCode()));
+			params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][userCouponCode]",
+					coupon.getCouponCode()));
+		}
+		params.add(new BasicNameValuePair("buyType", "2"));
+		params.add(new BasicNameValuePair("deliveryType", "2"));
+		params.add(new BasicNameValuePair("payPoint", "0"));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][freeAmount]", "0"));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][freightAmount]", bean.getFreightMoney() + ""));
+		params.add(
+				new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][costPrice]", bean.getMemberPrice()));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][costTB]", "0"));
+		Date now = new Date();
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][createTime]", now.getTime() + ""));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][isPresent]", "0"));
+		if (coupon == null) {
+			params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][payAmount]",
+					bean.getMemberPrice()));
+			params.add(new BasicNameValuePair("orderPayAmount", bean.getMemberPrice()));
+		} else {
+			params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][payAmount]",
+					(Long.valueOf(bean.getMemberPrice()) - 500) + ""));
+			params.add(new BasicNameValuePair("orderPayAmount", (Long.valueOf(bean.getMemberPrice()) - 500) + ""));
+
+		}
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][payPoint]", "0"));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][productCode]",
+				bean.getProductCode()));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][productName]",
+				bean.getProductName()));
+		params.add(
+				new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][productSkuCode]", bean.getSkuCode()));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][productType]", "1"));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][quantity]", "1"));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][userActivityCode]", "A001303"));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][storeId]", bean.getStoreId()));
+		params.add(new BasicNameValuePair("tshAmount", "0"));
+		params.add(new BasicNameValuePair("userAddressId", teshehuiSession.getUserBean().getAddressId()));
+		params.add(new BasicNameValuePair("userType", "0"));
+		try {
+			HttpUriRequest httpUriRequest;
+			httpUriRequest = RequestBuilder.post().setEntity(new UrlEncodedFormEntity(params, "UTF-8")).setUri(uri)
+					.build();
+			HttpClientContext httpClientContext = HttpClientContext.create();
+			HttpResponse response = httpClient.execute(httpUriRequest, httpClientContext);
+			if (response.getStatusLine().getStatusCode() == 200) {
+				HttpEntity entity = response.getEntity();
+				if (entity != null) {
+					String content = EntityUtils.toString(entity);
+					JSONObject jsonObject = JSON.parseObject(content);
+					if ((jsonObject.getInteger("status") == 200)) {
+						resultBean.setResultCode(0);
+					} else {
+						if ((jsonObject.getInteger("status") == 500)
+								&& (jsonObject.getString("code").equals("20416014"))) {
+							checkYanZ();
+						}
+						resultBean.setReturnMsg(jsonObject.getString("message"));
+					}
+				}
+			}
+			httpClient.close();
+		} catch (Exception e) {
+			resultBean.setReturnMsg("下单失败 " + e.getMessage());
+		}
+		return resultBean;
+	}
+
 	public ReturnResultBean createOrderUseMyCoupon(SkuBean bean) {
 		ReturnResultBean returnFreightBean = getFreightAmount(bean);
 		if (returnFreightBean.getResultCode() != 0) {
@@ -987,6 +1086,11 @@ public class TeshehuiServiceImpl {
 						if ((jsonObject.getInteger("status") == 500)
 								&& (jsonObject.getString("code").equals("20416014"))) {
 							checkYanZ();
+							resultBean = createOrderUseCoupon(bean, coupon);
+							if (resultBean.getResultCode() == 0) {
+								httpClient.close();
+								return resultBean;
+							}
 						}
 						resultBean.setReturnMsg(jsonObject.getString("message"));
 						teshehuiSession.useCouponFail(coupon);

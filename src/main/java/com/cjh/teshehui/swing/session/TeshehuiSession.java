@@ -50,7 +50,9 @@ public class TeshehuiSession {
 	private List<String> hadGotcouponBatchList = Lists.newArrayList();
 
 	public void addHadGotcouponBatch(String batchCode) {
-		hadGotcouponBatchList.add(batchCode);
+		synchronized (this) {
+			hadGotcouponBatchList.add(batchCode);
+		}
 	}
 
 	public boolean hadGotVerify(String batchCode) {
@@ -73,7 +75,7 @@ public class TeshehuiSession {
 	}
 
 	public void addCoupon(Coupon coupon) {
-		synchronized (TeshehuiSession.class) {
+		synchronized (this) {
 			for (Coupon myCoupon : couponList) {
 				if (myCoupon.getCouponCode().equals(coupon.getCouponCode())) {
 					return;
@@ -84,7 +86,7 @@ public class TeshehuiSession {
 	}
 
 	public Coupon useCoupon() {
-		synchronized (TeshehuiSession.class) {
+		synchronized (this) {
 			for (int i = 0; i < couponList.size(); i++) {
 				if (couponList.get(i).isUseFlag() == false) {
 					Coupon coupon = couponList.get(i);
@@ -98,8 +100,10 @@ public class TeshehuiSession {
 	}
 
 	public void useCouponFail(Coupon coupon) {
-		coupon.setUseFlag(false);
-		couponList.add(coupon);
+		synchronized (this) {
+			coupon.setUseFlag(false);
+			couponList.add(coupon);
+		}
 	}
 
 	public void setUserBean(UserBean userBean) {
