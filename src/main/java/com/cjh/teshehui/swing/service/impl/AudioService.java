@@ -64,7 +64,6 @@ public class AudioService {
 					if (nBytesRead >= 0)
 						auline.write(abData, 0, nBytesRead);
 				}
-				hadPlay = true;
 			} catch (IOException e) {
 				e.printStackTrace();
 				return;

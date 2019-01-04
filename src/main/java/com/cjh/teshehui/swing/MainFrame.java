@@ -116,6 +116,14 @@ public class MainFrame extends JFrame {
 	private JTextField ydmUserNmae;
 	private JTextField ydmPasswd;
 	private JTextPane ydmMsg;
+	JPanel loginPane;
+	JPanel panel_2;
+	JFormattedTextField formattedTextField;
+	JFormattedTextField formattedTextField_4;
+	JFormattedTextField formattedTextField_1;
+
+
+
 
 	/**
 	 * Launch the application.
@@ -215,9 +223,9 @@ public class MainFrame extends JFrame {
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
 		setContentPane(contentPane);
 		contentPane.setLayout(null);
+		loginPane = new JPanel();
 
 		// 登录框begin
-		JPanel loginPane = new JPanel();
 		loginPane.setBorder(new LineBorder(new Color(0, 0, 0)));
 		loginPane.setBounds(10, 10, 291, 154);
 		contentPane.add(loginPane);
@@ -264,7 +272,7 @@ public class MainFrame extends JFrame {
 						}
 						teshehuiSessionManager.addSession(userName, (TeshehuiSession) returnBean.getReturnObj());
 						line++;
-						if (line == 3) {
+						if (line > 3) {
 							reader.close();
 							break;
 						}
@@ -374,7 +382,7 @@ public class MainFrame extends JFrame {
 		});
 		// 登录框end
 		// 商品选择框begin
-		JPanel panel_2 = new JPanel();
+		panel_2 = new JPanel();
 		panel_2.setBorder(new LineBorder(new Color(0, 0, 0)));
 		panel_2.setBounds(334, 10, 834, 154);
 		contentPane.add(panel_2);
@@ -466,7 +474,7 @@ public class MainFrame extends JFrame {
 		}
 		Date endTime = new Date(beginTime.getTime() + 1000 * 60 * 15L);
 
-		JFormattedTextField formattedTextField = new JFormattedTextField(df);
+		formattedTextField = new JFormattedTextField(df);
 		formattedTextField.setBounds(229, 99, 173, 24);
 		formattedTextField.setValue(beginTime);
 		panel_2.add(formattedTextField);
@@ -475,7 +483,7 @@ public class MainFrame extends JFrame {
 		label_1.setBounds(416, 105, 15, 18);
 		panel_2.add(label_1);
 
-		JFormattedTextField formattedTextField_1 = new JFormattedTextField(df);
+		formattedTextField_1 = new JFormattedTextField(df);
 		formattedTextField_1.setBounds(445, 99, 173, 24);
 		formattedTextField_1.setValue(endTime);
 		panel_2.add(formattedTextField_1);
@@ -484,7 +492,7 @@ public class MainFrame extends JFrame {
 		label_2.setBounds(588, 61, 56, 18);
 		panel_2.add(label_2);
 
-		JFormattedTextField formattedTextField_4 = new JFormattedTextField(nf);
+		formattedTextField_4 = new JFormattedTextField(nf);
 		formattedTextField_4.setBounds(644, 59, 32, 24);
 		formattedTextField_4.setValue(1);
 		// formattedTextField_4.setEditable(false);

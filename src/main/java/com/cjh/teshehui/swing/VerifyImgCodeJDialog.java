@@ -19,6 +19,7 @@ import org.springframework.util.StringUtils;
 public class VerifyImgCodeJDialog extends JDialog {
 
 	private JTextField verifyImgField;
+	Container container;
 
 	public String getVerifyImgCode() {
 		return verifyImgField.getText();
@@ -27,7 +28,7 @@ public class VerifyImgCodeJDialog extends JDialog {
 	public VerifyImgCodeJDialog(MainFrame frame, String phoneNo) { // 构造函数 可以不写
 																	// 那个 void
 		super(frame, "输入图片中的英文字母", true);// 实例化一个JDialog 类对象，指定对话框的父窗体 窗体标题 和类型
-		Container container = getContentPane();
+		container = getContentPane();
 		container.setLayout(null);
 		try {
 			JLabel lblNewLabel = new JLabel("");
