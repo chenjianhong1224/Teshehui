@@ -525,15 +525,15 @@ public class TeshehuiServiceImpl {
 		return resultBean;
 	}
 
-	public ReturnResultBean createOrder(SkuBean bean) {
+	public ReturnResultBean createOrder(SkuBean bean, String num) {
 		ReturnResultBean returnFreightBean = getFreightAmount(bean);
 		if (returnFreightBean.getResultCode() != 0) {
 			returnFreightBean.setResultCode(-1);
 			returnFreightBean.setReturnMsg("获取运费失败:" + returnFreightBean.getReturnMsg());
 			return returnFreightBean;
 		}
-		// bean.setFreightMoney((Integer) returnFreightBean.getReturnObj());
-		bean.setFreightMoney(0);
+		bean.setFreightMoney((Integer) returnFreightBean.getReturnObj());
+		//bean.setFreightMoney(0);
 		ReturnResultBean resultBean = new ReturnResultBean();
 		resultBean.setResultCode(-1);
 		resultBean.setReturnMsg("下单失败");
@@ -563,35 +563,36 @@ public class TeshehuiServiceImpl {
 			return resultBean;
 		}
 		List<NameValuePair> params = Lists.newArrayList();
-		params.add(new BasicNameValuePair("buyType", "2"));
-		params.add(new BasicNameValuePair("deliveryType", "2"));
-		params.add(new BasicNameValuePair("orderPayAmount", bean.getMemberPrice()));
+		params.add(new BasicNameValuePair("orderPayAmount",
+				String.valueOf(Integer.valueOf(bean.getMemberPrice()) * Integer.valueOf(num))));
+		params.add(new BasicNameValuePair("userType", "0"));
+		params.add(new BasicNameValuePair("userAddressId", teshehuiSession.getUserBean().getAddressId()));
 		params.add(new BasicNameValuePair("payPoint", "0"));
 		params.add(new BasicNameValuePair("scheduleOrderList[0][freeAmount]", "0"));
 		params.add(new BasicNameValuePair("scheduleOrderList[0][freightAmount]", bean.getFreightMoney() + ""));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][storeId]", bean.getStoreId()));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][userCouponCode]", ""));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][productType]", "1"));
 		params.add(
 				new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][costPrice]", bean.getMemberPrice()));
 		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][costTB]", "0"));
 		Date now = new Date();
 		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][createTime]", now.getTime() + ""));
-		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][isPresent]", "0"));
-		params.add(
-				new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][payAmount]", bean.getMemberPrice()));
-		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][payPoint]", "0"));
-		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][productCode]",
-				bean.getProductCode()));
 		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][productName]",
 				bean.getProductName()));
 		params.add(
 				new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][productSkuCode]", bean.getSkuCode()));
-		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][productType]", "1"));
-		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][quantity]", "1"));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][productCode]",
+				bean.getProductCode()));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][quantity]", num));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][payAmount]",
+				String.valueOf(Integer.valueOf(bean.getMemberPrice()) * Integer.valueOf(num))));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][payPoint]", "0"));
 		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][userActivityCode]", "A001303"));
-		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][userCouponCode]", ""));
-		params.add(new BasicNameValuePair("scheduleOrderList[0][storeId]", bean.getStoreId()));
+		params.add(new BasicNameValuePair("scheduleOrderList[0][productOrderList][0][isPresent]", "0"));
+		params.add(new BasicNameValuePair("buyType", "2"));
 		params.add(new BasicNameValuePair("tshAmount", "0"));
-		params.add(new BasicNameValuePair("userAddressId", teshehuiSession.getUserBean().getAddressId()));
-		params.add(new BasicNameValuePair("userType", "0"));
+		params.add(new BasicNameValuePair("deliveryType", "2"));
 		try {
 			HttpUriRequest httpUriRequest;
 			httpUriRequest = RequestBuilder.post().setEntity(new UrlEncodedFormEntity(params, "UTF-8")).setUri(uri)

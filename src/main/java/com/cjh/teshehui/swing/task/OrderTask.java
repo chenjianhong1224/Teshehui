@@ -54,7 +54,6 @@ public class OrderTask implements Runnable {
 	public void run() {
 		ViewMsgBean msg = new ViewMsgBean();
 		msg.setRow(rowIndex);
-		int successNum = 0;
 		teshehuiService.getAddress();
 		try {
 			while (!taskFinishFlag.get()) {
@@ -93,11 +92,7 @@ public class OrderTask implements Runnable {
 					continue;
 				}
 				if (now.getTime() > endTime.getTime()) {
-					if (successNum > 0) {
-						msg.setMsg("到点了, 收工，已成功" + successNum + "个");
-					} else {
-						msg.setMsg("到点了, 收工...");
-					}
+					msg.setMsg("到点了, 收工...");
 					ViewTask.msgQueue.put(msg);
 					return;
 				}
@@ -110,7 +105,7 @@ public class OrderTask implements Runnable {
 				// if (queryBean.getSkuCode().equals(sku.getSkuCode())) {
 				// if (queryBean.getSkuStock() > 0) {
 				if (!canUseCoupon) {
-					returnBean = teshehuiService.createOrder(sku);
+					returnBean = teshehuiService.createOrder(sku, num);
 				} else {
 					boolean hadGotFlag = teshehuiSession.hadGotVerify(couponBatchCode);
 					if (!hadGotFlag) {
@@ -122,14 +117,11 @@ public class OrderTask implements Runnable {
 					returnBean = teshehuiService.createOrderUseMyCoupon(sku);
 				}
 				if (returnBean.getResultCode() == 0) {
-					successNum++;
-					msg.setMsg("成功啦, 成功" + successNum + "个");
+					msg.setMsg("成功啦");
 					TaskResultStatistic t = TaskResultStatistic.getInstance();
 					t.addResult(teshehuiSession.getUserBean().getNickName(), rowIndex);
 					ViewTask.msgQueue.put(msg);
-					if (successNum == Integer.valueOf(num)) {
-						return;
-					}
+					return;
 				} else {
 					msg.setMsg(returnBean.getReturnMsg());
 					ViewTask.msgQueue.put(msg);
