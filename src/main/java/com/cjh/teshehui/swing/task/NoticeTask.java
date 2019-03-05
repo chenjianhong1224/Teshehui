@@ -19,7 +19,7 @@ public class NoticeTask implements Runnable {
 				Integer t = msgQueue.poll(300, TimeUnit.MILLISECONDS);
 				if (t != null) {
 					Date now = new Date();
-					if (now.getTime() - lastNoticeTime > 60000) {
+					if (now.getTime() - lastNoticeTime > 5 * 60000) {
 						AudioService.getInstance().play("1.wav");
 						lastNoticeTime = now.getTime();
 					}

@@ -105,6 +105,7 @@ public class MainFrame extends JFrame {
 	private Thread noticeThread = null;
 	private boolean isRunning = false;
 	private JButton excuteButton;
+	private JCheckBox autoFreightcheckBox;
 
 	private JTable table;
 	private DefaultTableModel dtm = null;
@@ -114,13 +115,17 @@ public class MainFrame extends JFrame {
 	private JFormattedTextField lunxuTime;
 	private JTextField smsCodeField;
 	private JTextField ydmUserNmae;
-	private JTextField ydmPasswd;
+	private JPasswordField ydmPasswd;
 	private JTextPane ydmMsg;
 	JPanel loginPane;
 	JPanel panel_2;
 	JFormattedTextField formattedTextField;
 	JFormattedTextField formattedTextField_4;
 	JFormattedTextField formattedTextField_1;
+	private JTextField mailField;
+	private JTextField freigthField;
+	private JLabel lblNewLabel;
+	private JPasswordField passwordField;
 
 
 
@@ -227,7 +232,7 @@ public class MainFrame extends JFrame {
 
 		// 登录框begin
 		loginPane.setBorder(new LineBorder(new Color(0, 0, 0)));
-		loginPane.setBounds(10, 10, 291, 154);
+		loginPane.setBounds(10, 10, 291, 201);
 		contentPane.add(loginPane);
 		loginPane.setLayout(null);
 
@@ -242,7 +247,7 @@ public class MainFrame extends JFrame {
 		loginPane.add(phoneNoLabel);
 
 		phoneNoField = new JTextField();
-		phoneNoField.setBounds(76, 43, 101, 21);
+		phoneNoField.setBounds(82, 42, 91, 21);
 		loginPane.add(phoneNoField);
 		phoneNoField.setColumns(10);
 
@@ -295,7 +300,7 @@ public class MainFrame extends JFrame {
 			}
 		});
 
-		sessionLoginButton.setBounds(105, 119, 176, 26);
+		sessionLoginButton.setBounds(105, 139, 176, 44);
 		loginPane.add(sessionLoginButton);
 
 		verifyLabel = new JLabel("验证码");
@@ -304,11 +309,11 @@ public class MainFrame extends JFrame {
 
 		smsCodeField = new JTextField();
 		smsCodeField.setColumns(10);
-		smsCodeField.setBounds(76, 81, 101, 21);
+		smsCodeField.setBounds(82, 80, 91, 21);
 		loginPane.add(smsCodeField);
 
 		loginButton = new JButton("登录");
-		loginButton.setBounds(10, 119, 68, 26);
+		loginButton.setBounds(10, 139, 68, 44);
 		loginButton.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseClicked(MouseEvent e) {
@@ -384,7 +389,7 @@ public class MainFrame extends JFrame {
 		// 商品选择框begin
 		panel_2 = new JPanel();
 		panel_2.setBorder(new LineBorder(new Color(0, 0, 0)));
-		panel_2.setBounds(334, 10, 834, 154);
+		panel_2.setBounds(334, 10, 834, 201);
 		contentPane.add(panel_2);
 		panel_2.setLayout(null);
 
@@ -561,9 +566,21 @@ public class MainFrame extends JFrame {
 				if (skuComboBox.getSelectedItem() != null
 						&& !StringUtils.isEmpty((String) skuComboBox.getSelectedItem())) {
 					String key = (String) skuComboBox.getSelectedItem() + " " + productNameLabel.getText();
-					String row[] = { key, "", "", "" };
+					String num = formattedTextField_4.getText();
+					String row[] = { key, "", "每次购买" + num + "个", "" };
 					dtm.addRow(row);
-					taskBeans.add(skuComboBoxMap.get(key));
+					SkuBean bean = skuComboBoxMap.get(key);
+					bean.setOrderNum(num);
+					if(autoFreightcheckBox.isSelected()) {
+						bean.setForceFreightMoney(null);
+					}else {
+						try {
+							bean.setForceFreightMoney(Integer.valueOf(freigthField.getText()));
+						} catch (Exception e1) {
+							JOptionPane.showMessageDialog(panel_2, "请确认运费是数字");
+						}
+					}
+					taskBeans.add(bean);
 				} else {
 					JOptionPane.showMessageDialog(panel_2, "无法添加任务，请确认url正确");
 				}
@@ -571,14 +588,27 @@ public class MainFrame extends JFrame {
 		});
 		addTaskButton.setBounds(707, 57, 113, 27);
 		panel_2.add(addTaskButton);
+		
+		autoFreightcheckBox = new JCheckBox("是否自动获取邮费");
+		autoFreightcheckBox.setBounds(14, 153, 187, 27);
+		panel_2.add(autoFreightcheckBox);
+		
+		JLabel label_3 = new JLabel("强制设置邮费");
+		label_3.setBounds(229, 157, 113, 18);
+		panel_2.add(label_3);
+		
+		freigthField = new JTextField();
+		freigthField.setBounds(345, 154, 57, 24);
+		panel_2.add(freigthField);
+		freigthField.setColumns(10);
 		// 商品选择框end
 
 		JPanel panel_3 = new JPanel(new BorderLayout());
 		panel_3.setBorder(new TitledBorder(null, "", TitledBorder.LEADING, TitledBorder.TOP, null, null));
-		panel_3.setBounds(10, 191, 1158, 254);
+		panel_3.setBounds(10, 224, 1158, 221);
 		contentPane.add(panel_3);
 
-		String[] columnNames = { "任务名", "时间", "是否成功", "执行描述" };
+		String[] columnNames = { "任务名", "时间", "每次购买个数", "执行描述" };
 		dtm = new DefaultTableModel(columnNames, 0);
 		table = new JTable(dtm);
 		table.setBorder(new EtchedBorder(EtchedBorder.LOWERED, null, null));
@@ -603,7 +633,7 @@ public class MainFrame extends JFrame {
 		contentPane.add(ydmUserNmae);
 		ydmUserNmae.setColumns(10);
 
-		ydmPasswd = new JTextField();
+		ydmPasswd = new JPasswordField();
 		ydmPasswd.setBounds(21, 515, 106, 21);
 		contentPane.add(ydmPasswd);
 		ydmPasswd.setColumns(10);
@@ -632,6 +662,23 @@ public class MainFrame extends JFrame {
 		ydmMsg = new JTextPane();
 		ydmMsg.setBounds(21, 469, 106, 67);
 		contentPane.add(ydmMsg);
+		
+		JLabel label = new JLabel("网易邮箱");
+		label.setBounds(312, 471, 113, 18);
+		contentPane.add(label);
+		
+		mailField = new JTextField();
+		mailField.setBounds(403, 468, 130, 24);
+		contentPane.add(mailField);
+		mailField.setColumns(10);
+		
+		lblNewLabel = new JLabel("邮箱密码");
+		lblNewLabel.setBounds(312, 517, 72, 18);
+		contentPane.add(lblNewLabel);
+		
+		passwordField = new JPasswordField();
+		passwordField.setBounds(403, 514, 130, 24);
+		contentPane.add(passwordField);
 		ydmMsg.setVisible(false);
 	}
 }

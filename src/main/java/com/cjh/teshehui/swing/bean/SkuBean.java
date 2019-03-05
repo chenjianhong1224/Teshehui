@@ -3,6 +3,26 @@ package com.cjh.teshehui.swing.bean;
 import java.io.Serializable;
 
 public class SkuBean implements Serializable {
+	
+	private Integer forceFreightMoney;
+	
+	private String orderNum;
+
+	public Integer getForceFreightMoney() {
+		return forceFreightMoney;
+	}
+
+	public void setForceFreightMoney(Integer forceFreightMoney) {
+		this.forceFreightMoney = forceFreightMoney;
+	}
+
+	public String getOrderNum() {
+		return orderNum;
+	}
+
+	public void setOrderNum(String orderNum) {
+		this.orderNum = orderNum;
+	}
 
 	private String supplierId;
 	

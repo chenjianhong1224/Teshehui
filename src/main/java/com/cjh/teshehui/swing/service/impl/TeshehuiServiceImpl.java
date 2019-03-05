@@ -526,13 +526,18 @@ public class TeshehuiServiceImpl {
 	}
 
 	public ReturnResultBean createOrder(SkuBean bean, String num) {
+		num = bean.getOrderNum();
 		ReturnResultBean returnFreightBean = getFreightAmount(bean);
 		if (returnFreightBean.getResultCode() != 0) {
 			returnFreightBean.setResultCode(-1);
 			returnFreightBean.setReturnMsg("获取运费失败:" + returnFreightBean.getReturnMsg());
 			return returnFreightBean;
 		}
-		bean.setFreightMoney((Integer) returnFreightBean.getReturnObj());
+		if(bean.getForceFreightMoney()==null) {
+			bean.setFreightMoney((Integer) returnFreightBean.getReturnObj());
+		}else {
+			bean.setFreightMoney(bean.getForceFreightMoney());
+		}
 		//bean.setFreightMoney(0);
 		ReturnResultBean resultBean = new ReturnResultBean();
 		resultBean.setResultCode(-1);
@@ -564,7 +569,8 @@ public class TeshehuiServiceImpl {
 		}
 		List<NameValuePair> params = Lists.newArrayList();
 		params.add(new BasicNameValuePair("orderPayAmount",
-				String.valueOf(Integer.valueOf(bean.getMemberPrice()) * Integer.valueOf(num))));
+				String.valueOf(
+						Integer.valueOf(bean.getMemberPrice()) * Integer.valueOf(num) + bean.getFreightMoney())));
 		params.add(new BasicNameValuePair("userType", "0"));
 		params.add(new BasicNameValuePair("userAddressId", teshehuiSession.getUserBean().getAddressId()));
 		params.add(new BasicNameValuePair("payPoint", "0"));
