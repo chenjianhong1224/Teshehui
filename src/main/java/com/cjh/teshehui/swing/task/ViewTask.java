@@ -5,6 +5,7 @@ import java.util.Date;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import javax.swing.JLabel;
 import javax.swing.JTable;
 import javax.swing.table.DefaultTableModel;
 
@@ -14,13 +15,15 @@ import com.cjh.teshehui.swing.service.impl.AudioService;
 
 public class ViewTask implements Runnable {
 
-	public ViewTask(JTable table, DefaultTableModel dtm) {
+	public ViewTask(JTable table, DefaultTableModel dtm, JLabel succlblNewLabel_1) {
 		this.table = table;
 		this.dtm = dtm;
+		this.succlblNewLabel_1 = succlblNewLabel_1;
 	}
 
 	JTable table;
 	DefaultTableModel dtm;
+	JLabel succlblNewLabel_1;
 
 	public static LinkedBlockingQueue<com.cjh.teshehui.swing.bean.ViewMsgBean> msgQueue = new LinkedBlockingQueue<ViewMsgBean>();
 
@@ -34,13 +37,17 @@ public class ViewTask implements Runnable {
 					table.setValueAt(sdf.format(msgBean.getTime()), msgBean.getRow(), 1);
 					TaskResultStatistic t = TaskResultStatistic.getInstance();
 					String resultStr = t.getTaskResult(msgBean.getRow());
-//					if (msgBean.getMsg().contains("成功")) {
-//						table.setValueAt(resultStr, msgBean.getRow(), 2);
-//					} else {
-//						table.setValueAt(resultStr, msgBean.getRow(), 2);
-//					}
+					if (msgBean.getMsg().contains("成功")) {
+						if (!succlblNewLabel_1.getText().contains(msgBean.getPhone())) {
+							succlblNewLabel_1.setText(succlblNewLabel_1.getText() + " " + msgBean.getPhone() + "抢到了。");
+						}
+					}
+					// else {
+					// table.setValueAt(resultStr, msgBean.getRow(), 2);
+					// }
 					table.setValueAt(msgBean.getMsg(), msgBean.getRow(), 3);
 					table.validate();
+
 					try {
 						if (msgBean.getMsg().contains("成功")) {
 							NoticeTask.msgQueue.add(1);

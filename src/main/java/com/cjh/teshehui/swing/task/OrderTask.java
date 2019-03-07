@@ -54,6 +54,7 @@ public class OrderTask implements Runnable {
 	public void run() {
 		ViewMsgBean msg = new ViewMsgBean();
 		msg.setRow(rowIndex);
+		msg.setPhone(teshehuiService.getTeshehuiSession().getUserBean().getMobilePhone());
 		teshehuiService.getAddress();
 		try {
 			while (!taskFinishFlag.get()) {

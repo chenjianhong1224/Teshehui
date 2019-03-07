@@ -9,6 +9,8 @@ public class ViewMsgBean implements Serializable {
 	
 	private Date time;
 	
+	private String phone;
+	
 	private int row;
 
 	public String getMsg() {
@@ -33,6 +35,14 @@ public class ViewMsgBean implements Serializable {
 
 	public void setRow(int row) {
 		this.row = row;
+	}
+
+	public String getPhone() {
+		return phone;
+	}
+
+	public void setPhone(String phone) {
+		this.phone = phone;
 	}
 
 }
