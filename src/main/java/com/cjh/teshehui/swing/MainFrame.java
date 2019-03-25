@@ -16,6 +16,7 @@ import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.border.LineBorder;
 
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -581,7 +582,8 @@ public class MainFrame extends JFrame {
 						&& !StringUtils.isEmpty((String) skuComboBox.getSelectedItem())) {
 					String key = (String) skuComboBox.getSelectedItem() + " " + productNameLabel.getText();
 					String num = formattedTextField_4.getText();
-					SkuBean bean = skuComboBoxMap.get(key);
+					SkuBean bean = new SkuBean();
+					BeanUtils.copyProperties(skuComboBoxMap.get(key), bean);
 					bean.setOrderNum(num);
 					if (autoFreightcheckBox.isSelected()) {
 						bean.setForceFreightMoney(null);
@@ -696,7 +698,7 @@ public class MainFrame extends JFrame {
 		passwordField = new JPasswordField();
 		passwordField.setBounds(403, 514, 130, 24);
 		contentPane.add(passwordField);
-		
+
 		succlblNewLabel_1 = new JLabel("");
 		succlblNewLabel_1.setBounds(614, 472, 554, 64);
 		contentPane.add(succlblNewLabel_1);
