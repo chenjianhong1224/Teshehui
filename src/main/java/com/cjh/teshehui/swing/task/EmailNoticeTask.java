@@ -58,7 +58,7 @@ public class EmailNoticeTask implements Runnable {
 			teshehuiServiceImplList.add(teshehuiService);
 			lastNoticeTimeList.add(0L);
 		}
-		while (!OrderTask.getTaskFinishFlag().get()) {
+		while (!BatchOrderTask.getTaskFinishFlag().get()) {
 			for (int i = 0; i < teshehuiServiceImplList.size(); i++) {
 				ReturnResultBean returnBean = teshehuiServiceImplList.get(i).checkNonPaymentOrder();
 				if (returnBean.getResultCode() == 0) {
@@ -85,7 +85,7 @@ public class EmailNoticeTask implements Runnable {
 					}
 				}
 				try {
-					Thread.sleep(1000 * 60);
+					Thread.sleep(3000);
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();

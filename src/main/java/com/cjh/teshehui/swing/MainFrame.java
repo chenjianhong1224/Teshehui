@@ -16,6 +16,7 @@ import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.border.LineBorder;
 
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -31,6 +32,7 @@ import com.cjh.teshehui.swing.service.TeshehuiService;
 import com.cjh.teshehui.swing.service.impl.TeshehuiServiceImpl;
 import com.cjh.teshehui.swing.session.TeshehuiSession;
 import com.cjh.teshehui.swing.session.TeshehuiSessionManager;
+import com.cjh.teshehui.swing.task.BatchOrderTask;
 import com.cjh.teshehui.swing.task.EmailNoticeTask;
 import com.cjh.teshehui.swing.task.NoticeTask;
 import com.cjh.teshehui.swing.task.OrderTask;
@@ -129,6 +131,7 @@ public class MainFrame extends JFrame {
 	private JTextField freigthField;
 	private JLabel lblNewLabel;
 	private JPasswordField passwordField;
+	private JCheckBox autoCouponcheckBox;
 
 	/**
 	 * Launch the application.
@@ -175,6 +178,7 @@ public class MainFrame extends JFrame {
 			TaskResultStatistic t = TaskResultStatistic.getInstance();
 			t.clear();
 			OrderTask.getTaskFinishFlag().set(true);
+			BatchOrderTask.getTaskFinishFlag().set(true);
 			for (Thread taskThread : taskThreadList) {
 				try {
 					taskThread.join();
@@ -539,20 +543,30 @@ public class MainFrame extends JFrame {
 					OrderTask.sleepTime = Long
 							.valueOf(StringUtils.isEmpty(lunxuTime.getText()) ? "1" : lunxuTime.getText()) * 1000;
 					OrderTask.getTaskFinishFlag().set(false);
+					BatchOrderTask.sleepTime = Long
+							.valueOf(StringUtils.isEmpty(lunxuTime.getText()) ? "1" : lunxuTime.getText()) * 1000;
+					BatchOrderTask.getTaskFinishFlag().set(false);
 					Date beginTime = (Date) formattedTextField.getValue();
 					Date endTime = (Date) formattedTextField_1.getValue();
 					int i = 0;
 					String num = formattedTextField_4.getText();
-					for (SkuBean sku : taskBeans) {
-						TeshehuiSessionManager teshehuiSessionManager = (TeshehuiSessionManager) SpringContextUtils
-								.getContext().getBean("teshehuiSessionManager");
-						Map<String, TeshehuiSession> sessionMap = teshehuiSessionManager.getAllSession();
-						for (String userName : sessionMap.keySet()) {
-							OrderTask task = new OrderTask(beginTime, endTime, sku, num, i, sessionMap.get(userName));
-							Thread taskThread = new Thread(task, "用户工作任务-" + i);
-							taskThreadList.add(taskThread);
-							taskThread.start();
-						}
+					TeshehuiSessionManager teshehuiSessionManager = (TeshehuiSessionManager) SpringContextUtils
+							.getContext().getBean("teshehuiSessionManager");
+					Map<String, TeshehuiSession> sessionMap = teshehuiSessionManager.getAllSession();
+//					for (SkuBean sku : taskBeans) {
+//						for (String userName : sessionMap.keySet()) {
+//							OrderTask task = new OrderTask(beginTime, endTime, sku, num, i, sessionMap.get(userName));
+//							Thread taskThread = new Thread(task, "用户工作任务-" + i);
+//							taskThreadList.add(taskThread);
+//							taskThread.start();
+//						}
+//						i++;
+//					}
+					for (String userName : sessionMap.keySet()) {
+						BatchOrderTask task = new BatchOrderTask(beginTime, endTime, taskBeans, num, sessionMap.get(userName));
+						Thread taskThread = new Thread(task, "用户工作任务-" + i);
+						taskThreadList.add(taskThread);
+						taskThread.start();
 						i++;
 					}
 					ViewTask viewTask = new ViewTask(table, dtm, succlblNewLabel_1);
@@ -581,7 +595,8 @@ public class MainFrame extends JFrame {
 						&& !StringUtils.isEmpty((String) skuComboBox.getSelectedItem())) {
 					String key = (String) skuComboBox.getSelectedItem() + " " + productNameLabel.getText();
 					String num = formattedTextField_4.getText();
-					SkuBean bean = skuComboBoxMap.get(key);
+					SkuBean bean = new SkuBean();
+					BeanUtils.copyProperties(skuComboBoxMap.get(key), bean);
 					bean.setOrderNum(num);
 					if (autoFreightcheckBox.isSelected()) {
 						bean.setForceFreightMoney(null);
@@ -593,8 +608,16 @@ public class MainFrame extends JFrame {
 							return;
 						}
 					}
-					String row[] = { key, "", "每次购买" + num + "个, 运费为"
-							+ (autoFreightcheckBox.isSelected() ? "自动获取" : freigthField.getText()), "" };
+					if (autoCouponcheckBox.isSelected()) {
+						bean.setAutoCoupon(true);
+					} else {
+						bean.setAutoCoupon(false);
+					}
+					String row[] = { key, "",
+							"每次购买" + num + "个, 运费为"
+									+ (autoFreightcheckBox.isSelected() ? "自动获取" : freigthField.getText()) + ","
+									+ (autoCouponcheckBox.isSelected() ? "自动使用优惠券" : "不使用优惠券"),
+							"" };
 					dtm.addRow(row);
 					taskBeans.add(bean);
 				} else {
@@ -618,6 +641,10 @@ public class MainFrame extends JFrame {
 		freigthField.setText("0");
 		panel_2.add(freigthField);
 		freigthField.setColumns(10);
+
+		autoCouponcheckBox = new JCheckBox("是否自动用优惠券");
+		autoCouponcheckBox.setBounds(445, 155, 161, 23);
+		panel_2.add(autoCouponcheckBox);
 		// 商品选择框end
 
 		JPanel panel_3 = new JPanel(new BorderLayout());
@@ -696,7 +723,7 @@ public class MainFrame extends JFrame {
 		passwordField = new JPasswordField();
 		passwordField.setBounds(403, 514, 130, 24);
 		contentPane.add(passwordField);
-		
+
 		succlblNewLabel_1 = new JLabel("");
 		succlblNewLabel_1.setBounds(614, 472, 554, 64);
 		contentPane.add(succlblNewLabel_1);

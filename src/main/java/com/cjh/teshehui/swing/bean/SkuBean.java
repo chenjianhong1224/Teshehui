@@ -6,7 +6,15 @@ public class SkuBean implements Serializable {
 	
 	private Integer forceFreightMoney;
 	
+	private Boolean autoCoupon;
+	
 	private String orderNum;
+	
+	private String brandCode;
+	
+	private String markerPrice;
+	
+	
 
 	public Integer getForceFreightMoney() {
 		return forceFreightMoney;
@@ -120,6 +128,30 @@ public class SkuBean implements Serializable {
 
 	public void setFreightMoney(Integer freightMoney) {
 		this.freightMoney = freightMoney;
+	}
+
+	public Boolean getAutoCoupon() {
+		return autoCoupon;
+	}
+
+	public void setAutoCoupon(Boolean autoCoupon) {
+		this.autoCoupon = autoCoupon;
+	}
+
+	public String getBrandCode() {
+		return brandCode;
+	}
+
+	public void setBrandCode(String brandCode) {
+		this.brandCode = brandCode;
+	}
+
+	public String getMarkerPrice() {
+		return markerPrice;
+	}
+
+	public void setMarkerPrice(String markerPrice) {
+		this.markerPrice = markerPrice;
 	}
 
 	private Integer skuId;

@@ -14,7 +14,7 @@ public class NoticeTask implements Runnable {
 
 	@Override
 	public void run() {
-		while (!OrderTask.getTaskFinishFlag().get()) {
+		while (!BatchOrderTask.getTaskFinishFlag().get()) {
 			try {
 				Integer t = msgQueue.poll(300, TimeUnit.MILLISECONDS);
 				if (t != null) {

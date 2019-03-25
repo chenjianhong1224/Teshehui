@@ -68,6 +68,8 @@ public class UserBean implements Serializable {
 	private String addressId;
 	
 	private String addressDetail;
+	
+	private String xuid;
 
 	public String getAddressId() {
 		return addressId;
@@ -91,6 +93,14 @@ public class UserBean implements Serializable {
 
 	public void setNickName(String nickName) {
 		this.nickName = nickName;
+	}
+
+	public String getXuid() {
+		return xuid;
+	}
+
+	public void setXuid(String xuid) {
+		this.xuid = xuid;
 	}
 
 }

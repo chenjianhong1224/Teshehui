@@ -30,7 +30,7 @@ public class ViewTask implements Runnable {
 	@Override
 	public void run() {
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-		while (!OrderTask.getTaskFinishFlag().get()) {
+		while (!BatchOrderTask.getTaskFinishFlag().get()) {
 			try {
 				ViewMsgBean msgBean = msgQueue.poll(300, TimeUnit.MILLISECONDS);
 				if (msgBean != null) {
@@ -57,7 +57,7 @@ public class ViewTask implements Runnable {
 					}
 				}
 			} catch (InterruptedException e) {
-				OrderTask.getTaskFinishFlag().set(true);
+				BatchOrderTask.getTaskFinishFlag().set(true);
 				return;
 			}
 		}

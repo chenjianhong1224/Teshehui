@@ -1,7 +1,9 @@
 package com.cjh.teshehui.test;
 
 import java.math.BigDecimal;
+import java.util.List;
 
+import org.assertj.core.util.Lists;
 import org.junit.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
@@ -20,9 +22,19 @@ public class StringTest {
 		addressId = addressId.substring(0, addressId.indexOf(">"));
 		System.out.println(addressId);
 	}
-	
-	@Test
-	public void hh(){
 
+	@Test
+	public void hh() {
+		List<Long> longList = Lists.newArrayList();
+		longList.add(1L);
+		longList.add(2L);
+		for (int i = 0; i < longList.size(); i++) {
+			Long e = longList.get(i);
+			e = e + 1;
+			longList.set(i, e);
+		}
+		for (int i = 0; i < longList.size(); i++) {
+			System.out.println(longList.get(i));
+		}
 	}
 }

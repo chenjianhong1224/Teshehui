@@ -48,9 +48,12 @@ import com.alibaba.fastjson.JSONObject;
 import com.cjh.teshehui.swing.app.AppContext;
 import com.cjh.teshehui.swing.app.AppFactory;
 import com.cjh.teshehui.swing.bean.Coupon;
+import com.cjh.teshehui.swing.bean.CreateOrderLikeAppBean;
 import com.cjh.teshehui.swing.bean.PasswdLoginBean;
+import com.cjh.teshehui.swing.bean.ProductOrder;
 import com.cjh.teshehui.swing.bean.Proxys;
 import com.cjh.teshehui.swing.bean.ReturnResultBean;
+import com.cjh.teshehui.swing.bean.ScheduleOrder;
 import com.cjh.teshehui.swing.bean.SkuBean;
 import com.cjh.teshehui.swing.bean.TaskResultStatistic;
 import com.cjh.teshehui.swing.bean.UserBean;
@@ -486,6 +489,7 @@ public class TeshehuiServiceImpl {
 						JSONArray jsonArray = jsonObject.getJSONArray("skuList");
 						for (int i = 0; i < jsonArray.size(); i++) {
 							SkuBean skuBean = new SkuBean();
+							skuBean.setBrandCode(jsonObject.getJSONObject("brandModel").getString("brandCode"));
 							skuBean.setSupplierId(jsonObject.getString("supplierId"));
 							skuBean.setProductName(jsonObject.getString("productName"));
 							skuBean.setSkuId(jsonArray.getJSONObject(i).getInteger("skuId"));
@@ -494,6 +498,7 @@ public class TeshehuiServiceImpl {
 							skuBean.setSkuStock(jsonArray.getJSONObject(i).getInteger("skuStock"));
 							skuBean.setLimitNum(jsonArray.getJSONObject(i).getInteger("limitNum"));
 							skuBean.setStoreId(jsonObject.getString("storeId"));
+							skuBean.setMarkerPrice(jsonObject.getString("markerPrice"));
 							skuBean.setMemberPrice(jsonArray.getJSONObject(i).getString("memberPrice"));
 							try {
 								JSONObject attrObj = jsonArray.getJSONObject(i).getJSONObject("attr1");
@@ -589,8 +594,161 @@ public class TeshehuiServiceImpl {
 		return resultBean;
 	}
 
+	public ReturnResultBean createOrderLikeApp(SkuBean bean, String num) {
+		num = bean.getOrderNum();
+		ReturnResultBean returnFreightBean = null;
+//		ReturnResultBean returnFreightBean = getFreightAmount(bean);
+//		if (returnFreightBean.getResultCode() != 0) {
+//			returnFreightBean.setResultCode(-1);
+//			returnFreightBean.setReturnMsg("获取运费失败:" + returnFreightBean.getReturnMsg());
+//			return returnFreightBean;
+//		}
+		if (bean.getForceFreightMoney() != null) {
+			bean.setFreightMoney(Integer.valueOf(bean.getForceFreightMoney()));
+		} else {
+			returnFreightBean = getOrderRealFreight(bean, num);
+			if (returnFreightBean.getResultCode() != 0) {
+				returnFreightBean.setResultCode(-1);
+				returnFreightBean.setReturnMsg("获取运费失败:" + returnFreightBean.getReturnMsg());
+				return returnFreightBean;
+			}
+			bean.setFreightMoney(Integer.valueOf((String) returnFreightBean.getReturnObj()));
+		}
+		ReturnResultBean resultBean = new ReturnResultBean();
+		resultBean.setResultCode(-1);
+		resultBean.setReturnMsg("下单失败");
+		CreateOrderLikeAppBean createOrderLikeAppBean = new CreateOrderLikeAppBean();
+		createOrderLikeAppBean.setBuyType("2");
+		createOrderLikeAppBean.setGroupType(0);
+		createOrderLikeAppBean.setIsUsedWhale(2);
+		createOrderLikeAppBean
+				.setOrderPayAmount(String.valueOf(Double.valueOf(bean.getMemberPrice()) * Integer.valueOf(num)));
+		createOrderLikeAppBean.setPayPoint(0);
+		String reportData = "xuid=" + teshehuiSession.getUserBean().getXuid()
+				+ "&os=27,8.1.0&ip=172.28.35.7<=1&dn=ffffffff-f86f-593a-acab-4e931e72a305&lon=108.406821&rsl=1080X2150&otp=100&plf=2&cn=南宁市&sid=1001&uid=1000143101&qd=xiaomi&nko=2&av=103&nkt=1&pm=MI 8 Lite&lat=22.809479&pn=广西壮族自治区";
+		createOrderLikeAppBean.setReportData(reportData);
+		List<ScheduleOrder> scheduleOrderList = Lists.newArrayList();
+		ScheduleOrder scheduleOrder = new ScheduleOrder();
+		scheduleOrder.setFreeAmount("0");
+		scheduleOrder.setFreightAmount(bean.getFreightMoney() + "");
+		List<ProductOrder> productOrderList = Lists.newArrayList();
+		ProductOrder productOrder = new ProductOrder();
+		productOrder.setActivityAmount("0");
+		productOrder.setActivityFreeFlag(true);
+		productOrder.setBrandCode(bean.getBrandCode());
+		productOrder.setCostPrice(bean.getMemberPrice());
+		productOrder.setCostTB(0);
+		Date now = new Date();
+		productOrder.setCreateTime(now.getTime());
+		productOrder.setDistriFlag(true);
+		productOrder.setFreeType(0);
+		productOrder.setGiftType(0);
+		productOrder.setIsGlobalShopping(0);
+		productOrder.setIsDelete(false);
+		productOrder.setIsInvalid(1);
+		productOrder.setIsPresale(0);
+		productOrder.setIsPresent(0);
+		productOrder.setIsSeckill(0);
+		productOrder.setIsSelect(true);
+		productOrder.setMarketPrice(bean.getMarkerPrice());
+		productOrder.setMemberPrice(bean.getMemberPrice());
+		productOrder.setPayAmount(String.valueOf(Double.valueOf(bean.getMemberPrice()) * Integer.valueOf(num)));
+		productOrder.setPayPoint(0);
+		productOrder.setProductCode(bean.getProductCode());
+		productOrder.setProductInDist(0);
+		productOrder.setProductSkuCode(bean.getSkuCode());
+		productOrder.setProductSource(0);
+		productOrder.setProductStatus(0);
+		productOrder.setProductType(1);
+		productOrder.setProductWeight(0.0);
+		productOrder.setQuantity(Integer.valueOf(num));
+		productOrder.setSchedulePrice("0");
+		productOrder.setSortTime(now.getTime());
+		productOrder.setStoreId(Integer.valueOf(bean.getStoreId()));
+		productOrder.setSupplierId(Integer.valueOf(bean.getSupplierId()));
+		productOrder.setSupportDelivery(false);
+		productOrder.setTshPrice(bean.getMemberPrice());
+		productOrder.setUserActivityCode("A001303");
+		productOrderList.add(productOrder);
+		scheduleOrder.setProductOrderList(productOrderList);
+		scheduleOrder.setStoreId(bean.getStoreId());
+		scheduleOrderList.add(scheduleOrder);
+		createOrderLikeAppBean.setScheduleOrderList(scheduleOrderList);
+		createOrderLikeAppBean.setTshAmount("0");
+		createOrderLikeAppBean.setUserAddressId(Integer.valueOf(teshehuiSession.getUserBean().getAddressId()));
+		createOrderLikeAppBean.setUserType("0");
+		createOrderLikeAppBean.setAppType("tsh");
+		createOrderLikeAppBean.setBusinessType("01");
+		createOrderLikeAppBean.setClientType("ANDROID");
+		createOrderLikeAppBean.setClientVersion("7.3.2");
+		createOrderLikeAppBean.setDitchCode("xiaomi");
+		createOrderLikeAppBean.setRequestClassName("com.teshehui.portal.client.order.request.AddMallOrderRequest");
+		createOrderLikeAppBean.setTimestamp(now.getTime());
+		createOrderLikeAppBean.setToken(teshehuiSession.getUserBean().getToken());
+		createOrderLikeAppBean.setUrl("/order/addMallOrder");
+		createOrderLikeAppBean.setUserId(teshehuiSession.getUserBean().getUserId());
+		createOrderLikeAppBean.setVersion("1.0.0");
+
+		List<Header> headerList = Lists.newArrayList();
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT, "*/*"));
+		headerList.add(new BasicHeader(HttpHeaders.ACCEPT_ENCODING, "gzip"));
+		headerList.add(new BasicHeader(HttpHeaders.CONNECTION, "Keep-Alive"));
+		headerList.add(new BasicHeader(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded"));
+		headerList.add(new BasicHeader(HttpHeaders.HOST, "portal-api.teshehui.com"));
+		headerList.add(new BasicHeader(HttpHeaders.USER_AGENT, "okhttp/3.3.1"));
+		CookieStore cookieStore = new BasicCookieStore();
+		HttpClient httpClient = HttpClients.custom()
+				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+				.setDefaultHeaders(headerList).setDefaultCookieStore(cookieStore).build();
+		String url = "https://portal-api.teshehui.com/client";
+		URI uri = null;
+		try {
+			uri = new URIBuilder(url).build();
+		} catch (URISyntaxException e) {
+			resultBean.setResultCode(-1);
+			resultBean.setReturnMsg("登录失败 " + e.getMessage());
+		}
+		List<NameValuePair> params = Lists.newArrayList();
+		params.add(new BasicNameValuePair("xuid", teshehuiSession.getUserBean().getXuid()));
+		params.add(new BasicNameValuePair("uid", teshehuiSession.getUserBean().getUserId() + ""));
+		params.add(new BasicNameValuePair("qd", "xiaomi"));
+		params.add(new BasicNameValuePair("plf", "2"));
+		params.add(new BasicNameValuePair("av", "103"));
+		System.out.println(JSON.toJSONString(createOrderLikeAppBean));
+		params.add(new BasicNameValuePair("requestObj", JSON.toJSONString(createOrderLikeAppBean)));
+		try {
+			HttpUriRequest httpUriRequest;
+			httpUriRequest = RequestBuilder.post().setEntity(new UrlEncodedFormEntity(params, "UTF-8")).setUri(uri)
+					.build();
+			HttpClientContext httpClientContext = HttpClientContext.create();
+			HttpResponse response = httpClient.execute(httpUriRequest, httpClientContext);
+			if (response.getStatusLine().getStatusCode() == 200) {
+				HttpEntity entity = response.getEntity();
+				if (entity != null) {
+					String content = EntityUtils.toString(entity);
+					System.out.println(content);
+					JSONObject jsonObject = JSON.parseObject(content);
+					if ((jsonObject.getInteger("status") == 200)) {
+						resultBean.setResultCode(0);
+					} else {
+						if ((jsonObject.getInteger("status") == 500)
+								&& (jsonObject.getString("code").equals("20416014"))) {
+							checkYanZ();
+						}
+						resultBean.setReturnMsg(jsonObject.getString("message"));
+					}
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			resultBean.setReturnMsg("下单失败 " + e.getMessage());
+		}
+		return resultBean;
+	}
+
 	public ReturnResultBean createOrder(SkuBean bean, String num) {
 		num = bean.getOrderNum();
+		// ReturnResultBean returnFreightBean = null;
 		ReturnResultBean returnFreightBean = getFreightAmount(bean);
 		if (returnFreightBean.getResultCode() != 0) {
 			returnFreightBean.setResultCode(-1);
@@ -623,8 +781,8 @@ public class TeshehuiServiceImpl {
 				"Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0"));
 		headerList.add(new BasicHeader("X-Requested-With", "XMLHttpRequest"));
 		CloseableHttpClient httpClient = HttpClients.custom()
-				.setDefaultRequestConfig(RequestConfig.custom().setSocketTimeout(3000).setConnectTimeout(5000)
-						.setConnectionRequestTimeout(3000).setCookieSpec(CookieSpecs.STANDARD).build())
+				.setDefaultRequestConfig(RequestConfig.custom().setSocketTimeout(5000).setConnectTimeout(5000)
+						.setConnectionRequestTimeout(5000).setCookieSpec(CookieSpecs.STANDARD).build())
 				.setDefaultHeaders(headerList).setDefaultCookieStore(teshehuiSession.getCookieStore())
 				.setDefaultHeaders(headerList).build();
 		String url = "https://m.teshehui.com/order/createorder";
@@ -983,8 +1141,8 @@ public class TeshehuiServiceImpl {
 				"Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0"));
 		headerList.add(new BasicHeader("X-Requested-With", "XMLHttpRequest"));
 		CloseableHttpClient httpClient = HttpClients.custom()
-				.setDefaultRequestConfig(RequestConfig.custom().setSocketTimeout(3000).setConnectTimeout(5000)
-						.setConnectionRequestTimeout(3000).setCookieSpec(CookieSpecs.STANDARD).build())
+				.setDefaultRequestConfig(RequestConfig.custom().setSocketTimeout(5000).setConnectTimeout(5000)
+						.setConnectionRequestTimeout(5000).setCookieSpec(CookieSpecs.STANDARD).build())
 				.setDefaultHeaders(headerList).setDefaultCookieStore(teshehuiSession.getCookieStore())
 				.setDefaultHeaders(headerList).build();
 		String url = "https://m.teshehui.com/order/createorder";
@@ -1089,8 +1247,8 @@ public class TeshehuiServiceImpl {
 				"Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0"));
 		headerList.add(new BasicHeader("X-Requested-With", "XMLHttpRequest"));
 		CloseableHttpClient httpClient = HttpClients.custom()
-				.setDefaultRequestConfig(RequestConfig.custom().setSocketTimeout(3000).setConnectTimeout(5000)
-						.setConnectionRequestTimeout(3000).setCookieSpec(CookieSpecs.STANDARD).build())
+				.setDefaultRequestConfig(RequestConfig.custom().setSocketTimeout(5000).setConnectTimeout(5000)
+						.setConnectionRequestTimeout(5000).setCookieSpec(CookieSpecs.STANDARD).build())
 				.setDefaultHeaders(headerList).setDefaultCookieStore(teshehuiSession.getCookieStore())
 				.setDefaultHeaders(headerList).build();
 		String url = "https://m.teshehui.com/order/createorder";
@@ -1327,6 +1485,7 @@ public class TeshehuiServiceImpl {
 						userBean.setMobilePhone(jsonObject.getString("mobilePhone"));
 						userBean.setToken(jsonObject.getString("token"));
 						userBean.setNickName(jsonObject.getString("nickName"));
+						userBean.setXuid(context.getXuid());
 						teshehuiSession.setAuth(userBean.getToken());
 						teshehuiSession.setUserBean(userBean);
 						resultBean.setReturnObj(teshehuiSession);

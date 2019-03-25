@@ -58,19 +58,25 @@ public class OrderTask implements Runnable {
 		teshehuiService.getAddress();
 		try {
 			while (!taskFinishFlag.get()) {
+				SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");//设置日期格式
+				System.out.println("尝试下单开始:" + df.format(new Date()));
 				ReturnResultBean returnBean = new ReturnResultBean();
-				returnBean = teshehuiService.getPromotioninf(sku.getProductCode());
-				boolean canUseCoupon = true;
-				if (returnBean.getResultCode() == 8888) {
-					canUseCoupon = false;
-				}
-				String couponBatchCode = (String) returnBean.getReturnObj();
+				boolean canUseCoupon = sku.getAutoCoupon();
 				TeshehuiSession teshehuiSession = teshehuiService.getTeshehuiSession();
-				returnBean = teshehuiService.getMyCoupon(couponBatchCode);
-				if (returnBean.getResultCode() == 0) {
-					List<Coupon> couponList = (List<Coupon>) returnBean.getReturnObj();
-					for (Coupon coupon : couponList) {
-						teshehuiSession.addCoupon(coupon);
+				String couponBatchCode = "";
+				if (sku.getAutoCoupon()) {
+					returnBean = teshehuiService.getPromotioninf(sku.getProductCode());
+					canUseCoupon = true;
+					if (returnBean.getResultCode() == 8888) {
+						canUseCoupon = false;
+					}
+					couponBatchCode = (String) returnBean.getReturnObj();
+					returnBean = teshehuiService.getMyCoupon(couponBatchCode);
+					if (returnBean.getResultCode() == 0) {
+						List<Coupon> couponList = (List<Coupon>) returnBean.getReturnObj();
+						for (Coupon coupon : couponList) {
+							teshehuiSession.addCoupon(coupon);
+						}
 					}
 				}
 				Date now = new Date();
@@ -106,7 +112,8 @@ public class OrderTask implements Runnable {
 				// if (queryBean.getSkuCode().equals(sku.getSkuCode())) {
 				// if (queryBean.getSkuStock() > 0) {
 				if (!canUseCoupon) {
-					returnBean = teshehuiService.createOrder(sku, num);
+					//returnBean = teshehuiService.createOrder(sku, num);
+					returnBean = teshehuiService.createOrderLikeApp(sku, num);
 				} else {
 					boolean hadGotFlag = teshehuiSession.hadGotVerify(couponBatchCode);
 					if (!hadGotFlag) {
@@ -122,7 +129,7 @@ public class OrderTask implements Runnable {
 					TaskResultStatistic t = TaskResultStatistic.getInstance();
 					t.addResult(teshehuiSession.getUserBean().getNickName(), rowIndex);
 					ViewTask.msgQueue.put(msg);
-					return;
+					//return;
 				} else {
 					msg.setMsg(returnBean.getReturnMsg());
 					ViewTask.msgQueue.put(msg);
@@ -141,6 +148,7 @@ public class OrderTask implements Runnable {
 				// msg.setMsg(returnBean.getReturnMsg());
 				// ViewTask.msgQueue.put(msg);
 				// }
+				System.out.println("尝试下单结束:" +df.format(new Date()));
 				Thread.sleep(sleepTime);
 			}
 		} catch (InterruptedException e) {

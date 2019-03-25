@@ -24,6 +24,7 @@ import javax.swing.ImageIcon;
 import org.junit.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import com.cjh.teshehui.swing.bean.Coupon;
 import com.cjh.teshehui.swing.utils.ImgUtils;
 import com.github.jaiimageio.stream.FileChannelImageOutputStream;
 
@@ -87,6 +88,18 @@ public class YanZhengMaTest {
 			File imgDir = new File(ocrResult);
 			ImageIO.write(resultImg, "TIFF", imgDir);
 		}
+	}
+
+	private void createResult(Coupon coupon) {
+		coupon = new Coupon();
+	}
+
+	@Test
+	public void TestObj() {
+		Coupon coupon = null;
+		System.out.println(coupon);
+		createResult(coupon);
+		System.out.println(coupon);
 	}
 
 	@Test
